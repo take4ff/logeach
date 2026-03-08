@@ -1,26 +1,182 @@
 @import "tailwindcss";
 
+/* ==========================================
+   Logeach デザインシステム
+   ライト基調 + ティール色アクセント
+   ========================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* メインカラー（ティール系） */
+  --primary: #1a5276;
+  --primary-light: #2980b9;
+  --primary-dark: #154360;
+  --primary-bg: #d4e6f1;
+
+  /* 感情カラー */
+  --emotion-neutral: #5d6d7e;
+  --emotion-thinking: #2980b9;
+  --emotion-satisfied: #27ae60;
+  --emotion-skeptical: #f39c12;
+  --emotion-angry: #e74c3c;
+  --emotion-impressed: #1abc9c;
+
+  /* ライトテーマ */
+  --background: #f5f7fa;
+  --background-white: #ffffff;
+  --surface: #ffffff;
+  --surface-hover: #eef2f7;
+  --foreground: #2c3e50;
+  --foreground-secondary: #5d6d7e;
+  --foreground-muted: #95a5a6;
+  --border: #d5dbdb;
+  --border-light: #e8ecef;
+
+  /* シャドウ */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* ボーダーラディウス */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-full: 9999px;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-background-white: var(--background-white);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-bg: var(--primary-bg);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-light: var(--border-light);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-muted: var(--foreground-muted);
+  --font-sans: var(--font-geist-sans), "Noto Sans JP", sans-serif;
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans, sans-serif);
+}
+
+/* ==========================================
+   共通ユーティリティ
+   ========================================== */
+
+/* カードスタイル */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+}
+
+/* AIチャットバブル（ティール色） */
+.chat-bubble-ai {
+  background: var(--primary);
+  color: white;
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+}
+
+/* ユーザーチャットバブル */
+.chat-bubble-user {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+}
+
+/* スムーズなスクロール */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--foreground-muted);
+  border-radius: var(--radius-full);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground-secondary);
+}
+
+/* ==========================================
+   アニメーション
+   ========================================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-dot {
+
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out;
+}
+
+/* タイピングインジケーター */
+.typing-dot {
+  animation: pulse-dot 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
 }
