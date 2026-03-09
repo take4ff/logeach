@@ -132,12 +132,12 @@ export default function HomePage() {
         <div className="flex justify-between items-center mb-12">
           <h1 className="text-4xl font-bold">Logeach</h1>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground hidden sm:inline">
               {user.displayName ?? user.email}
             </span>
             <button
               onClick={() => signOut()}
-              className="text-sm px-4 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+              className="text-sm px-4 py-2 text-muted-foreground hover:bg-muted rounded transition-colors"
             >
               ログアウト
             </button>
