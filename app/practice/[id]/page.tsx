@@ -10,7 +10,11 @@
 
 import { use } from "react";
 import Link from "next/link";
-import SlideViewer from "@/src/components/practice/SlideViewer";
+import dynamic from "next/dynamic";
+const SlideViewer = dynamic(
+    () => import("@/src/components/practice/SlideViewer"),
+    { ssr: false }
+);
 import ChatInterface from "@/src/components/practice/ChatInterface";
 import PersonaConfig from "@/src/components/setup/PersonaConfig";
 
@@ -38,7 +42,7 @@ export default function PracticePage({
                 <div className="flex-1 flex flex-col border-r border-border">
                     {/* 左上: スライド */}
                     <div className="flex-1 border-b border-border">
-                        <SlideViewer />
+                        <SlideViewer sessionId={id} />
                     </div>
                     {/* 左下: AIに反論 */}
                     <div className="p-4 bg-white">
