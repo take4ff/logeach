@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -10,20 +10,36 @@ import { uploadSlidePdf } from "@/src/lib/storage";
 // react-pdf のワーカーを CDN から読み込む
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
+const storageKey = (sessionId: string) => `slide_pdf_${sessionId}`;
+
 interface SlideViewerProps {
     /** 練習セッション ID（Supabase Storage のパスに使用） */
     sessionId?: string;
 }
 
 export default function SlideViewer({ sessionId = "default" }: SlideViewerProps) {
-    const [pdfFile, setPdfFile] = useState<File | null>(null);
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+    const [pdfFileName, setPdfFileName] = useState<string | null>(null);
     const [numPages, setNumPages] = useState<number>(0);
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [isDragging, setIsDragging] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // マウント時に localStorage から復元
+    useEffect(() => {
+        const stored = localStorage.getItem(storageKey(sessionId));
+        if (stored) {
+            try {
+                const { url, name } = JSON.parse(stored);
+                setPdfUrl(url);
+                setPdfFileName(name);
+            } catch {
+                localStorage.removeItem(storageKey(sessionId));
+            }
+        }
+    }, [sessionId]);
 
     // ファイルを選択・ドロップしたときの共通処理
     const handleFile = useCallback(
@@ -33,17 +49,22 @@ export default function SlideViewer({ sessionId = "default" }: SlideViewerProps)
                 return;
             }
             setUploadError(null);
-            setPdfFile(file);
+            setPdfFileName(file.name);
             setCurrentPage(1);
 
-            // ローカルプレビュー用の ObjectURL を生成
+            // ローカルプレビュー用の ObjectURL を生成（アップロード完了前のプレビュー）
             const localUrl = URL.createObjectURL(file);
             setPdfUrl(localUrl);
 
-            // Supabase Storage へバックグラウンドアップロード
+            // Supabase Storage へアップロードし、公開URLをlocalStorageに保存
             setIsUploading(true);
             try {
-                await uploadSlidePdf(file, sessionId);
+                const publicUrl = await uploadSlidePdf(file, sessionId);
+                setPdfUrl(publicUrl);
+                localStorage.setItem(
+                    storageKey(sessionId),
+                    JSON.stringify({ url: publicUrl, name: file.name })
+                );
             } catch (err) {
                 console.warn("Supabase upload failed:", err);
                 // アップロード失敗はプレビュー表示には影響させない
@@ -79,7 +100,7 @@ export default function SlideViewer({ sessionId = "default" }: SlideViewerProps)
     const nextPage = () => setCurrentPage((p) => Math.min(numPages, p + 1));
 
     // ---- 未アップロード時の UI ----
-    if (!pdfFile) {
+    if (!pdfUrl) {
         return (
             <div
                 className={`h-full flex flex-col items-center justify-center gap-4 transition-colors duration-200 cursor-pointer select-none
@@ -171,7 +192,7 @@ export default function SlideViewer({ sessionId = "default" }: SlideViewerProps)
                 <div className="flex items-center gap-2 min-w-0">
                     <FileText size={14} className="text-gray-400 shrink-0" />
                     <span className="text-xs text-gray-300 truncate max-w-[180px]">
-                        {pdfFile.name}
+                        {pdfFileName ?? ""}
                     </span>
                     {isUploading && (
                         <span className="flex items-center gap-1 text-xs text-blue-400 shrink-0">
