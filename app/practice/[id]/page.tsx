@@ -1,21 +1,13 @@
 "use client";
 
-/**
- * 練習セッション画面
- *
- * レイアウト:
- * 左上: SlideViewer（スライド表示）   右: AIのコメント表示
- * 左下: AIに反論（入力フォーム）      右下: 設定ボタン
- */
-
-import { use, useState } from "react";
+import { use, useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 const SlideViewer = dynamic(
     () => import("@/src/components/practice/SlideViewer"),
     { ssr: false }
 );
-import ChatInterface from "@/src/components/practice/ChatInterface";
+import ChatInterface, { Message } from "@/src/components/practice/ChatInterface";
 import PersonaConfig from "@/src/components/setup/PersonaConfig";
 import KnowledgeUpload from "@/src/components/setup/KnowledgeUpload";
 
@@ -27,6 +19,35 @@ export default function PracticePage({
     const { id } = use(params);
     const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
     const [isKnowledgeModalOpen, setIsKnowledgeModalOpen] = useState(false);
+
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [streamingText, setStreamingText] = useState<string | null>(null);
+    const bottomRef = useRef<HTMLDivElement | null>(null);
+
+    // 新しいメッセージ・ストリーミング更新のたびに自動スクロール
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, streamingText]);
+
+    // user がメッセージを送信したとき
+    const handleUserMessage = useCallback((text: string) => {
+        setMessages((prev) => [...prev, { role: "user" as const, text }]);
+        setStreamingText("考え中...");
+    }, []);
+
+    // ストリーミング中（chunk が届くたびに呼ばれる）
+    const handleAssistantChunk = useCallback((chunk: string) => {
+        setStreamingText(chunk);
+    }, []);
+
+    // ストリーミング完了
+    const handleAssistantDone = useCallback((fullText: string, emotion?: string) => {
+        setStreamingText(null);
+        setMessages((prev) => [
+            ...prev,
+            { role: "assistant" as const, text: fullText, emotion },
+        ]);
+    }, []);
 
     return (
         <div className="h-screen flex flex-col">
@@ -49,15 +70,59 @@ export default function PracticePage({
                     </div>
                     {/* 左下: AIに反論 */}
                     <div className="p-4 bg-white">
-                        <ChatInterface sessionId={id} />
+                        <label className="block text-sm font-medium mb-2">AIに反論</label>
+                        <ChatInterface
+                            sessionId={id}
+                            onUserMessage={handleUserMessage}
+                            onAssistantChunk={handleAssistantChunk}
+                            onAssistantDone={handleAssistantDone}
+                        />
                     </div>
                 </div>
 
                 {/* 右カラム: AIコメント + 設定 */}
                 <div className="w-[420px] flex flex-col bg-white">
-                    <div className="flex-1 p-4">
-                        {/* TODO: メンバー2 - AIのコメント表示エリア */}
-                        <p className="text-foreground-muted text-sm">AIのコメントがここに表示されます</p>
+                    {/* AIコメント表示エリア（スクロール） */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                        {messages.length === 0 && streamingText === null ? (
+                            <p className="text-foreground-muted text-sm">
+                                AIのコメントがここに表示されます
+                            </p>
+                        ) : (
+                            <>
+                                {messages.map((msg, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                                    >
+                                        <div
+                                            className={`max-w-[85%] text-sm rounded-2xl px-4 py-2 whitespace-pre-wrap ${msg.role === "user"
+                                                ? "bg-blue-600 text-white rounded-br-sm"
+                                                : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                                                }`}
+                                        >
+                                            {msg.text}
+                                            {msg.emotion && (
+                                                <p className="mt-1 text-xs text-gray-500 italic">
+                                                    😊 {msg.emotion}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {/* ストリーミング中のアシスタントメッセージ */}
+                                {streamingText !== null && (
+                                    <div className="flex justify-start">
+                                        <div className="max-w-[85%] bg-gray-100 text-gray-800 text-sm rounded-2xl rounded-bl-sm px-4 py-2 whitespace-pre-wrap">
+                                            {streamingText}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div ref={bottomRef} />
+                            </>
+                        )}
                     </div>
                     <div className="border-t border-border p-4 space-y-3">
                         <button
