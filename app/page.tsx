@@ -2,22 +2,82 @@
 
 /**
  * ホーム画面
- * TODO: セッション一覧と新規作成ボタンを実装
+ * セッション一覧と新規作成機能を提供
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/src/components/auth/AuthProvider";
+import { supabase } from "@/src/lib/supabase";
+
+// データベースからの取得結果の型定義
+type SessionWithPersona = {
+  id: string;
+  title: string | null;
+  created_at: string;
+  personas: {
+    name: string;
+  } | null;
+};
 
 export default function HomePage() {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
 
+  const [sessions, setSessions] = useState<SessionWithPersona[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
+
+  // 新規作成モーダル用ステート
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newSessionTitle, setNewSessionTitle] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+
+  // 認証チェック
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
     }
   }, [user, loading, router]);
+
+  // セッション一覧の取得
+  useEffect(() => {
+    async function fetchSessions() {
+      if (!user) return;
+
+      try {
+        setLoadingSessions(true);
+        // sessionsテーブルから自身のデータを取得。※titleカラムが追加されている前提
+        const { data, error } = await supabase
+          .from("sessions")
+          .select(`
+            id,
+            title,
+            created_at,
+            personas (
+              name
+            )
+          `)
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          console.error("セッションの取得に失敗しました:", error);
+          return;
+        }
+
+        // 期待する型にキャスト
+        setSessions((data as unknown as SessionWithPersona[]) || []);
+      } catch (error) {
+        console.error("エラーが発生しました:", error);
+      } finally {
+        setLoadingSessions(false);
+      }
+    }
+
+    if (user) {
+      fetchSessions();
+    }
+  }, [user]);
 
   if (loading || !user) {
     return (
@@ -27,39 +87,161 @@ export default function HomePage() {
     );
   }
 
-  const handleNewSession = () => {
-    const sessionId = `session-${Date.now()}`;
+  // 新規作成の実行処理（DB保存 -> 遷移）
+  const handleCreateSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSessionTitle.trim() || isCreating) return;
+
+    setIsCreating(true);
+    try {
+      // セッションを新規作成してDBに保存
+      const { data, error } = await supabase
+        .from("sessions")
+        .insert([
+          {
+            user_id: user.id,
+            title: newSessionTitle.trim(),
+            // persona_id は後から練習画面で設定する想定なら null のまま
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // 作成されたセッションのIDへ遷移
+      if (data && data.id) {
+        setIsModalOpen(false);
+        router.push(`/practice/${data.id}`);
+      }
+    } catch (err: any) {
+      console.error("セッションの作成に失敗しました:", err);
+      // ユーザーにエラー内容を通知する
+      alert(`セッションの作成に失敗しました。\n詳細: ${err.message || "不明なエラー"}`);
+      setIsCreating(false);
+    }
+  };
+
+  const handleOpenSession = (sessionId: string) => {
     router.push(`/practice/${sessionId}`);
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
       <main className="max-w-5xl mx-auto px-6 py-16">
         <div className="flex justify-between items-center mb-12">
           <h1 className="text-4xl font-bold">Logeach</h1>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground hidden sm:inline">
               {user.displayName ?? user.email}
             </span>
             <button
               onClick={() => signOut()}
-              className="text-sm px-4 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+              className="text-sm px-4 py-2 text-muted-foreground hover:bg-muted rounded transition-colors"
             >
               ログアウト
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* 新規作成カード */}
           <button
-            onClick={handleNewSession}
-            className="card flex flex-col items-center justify-center p-8 min-h-[180px] cursor-pointer"
+            onClick={() => { setIsModalOpen(true); setNewSessionTitle(""); }}
+            className="flex flex-col items-center justify-center p-8 min-h-[180px] rounded-xl border border-dashed border-border hover:bg-muted/50 hover:border-solid transition-all cursor-pointer"
           >
-            <span className="text-2xl mb-2">＋</span>
-            <span>新規作成</span>
+            <span className="text-3xl mb-3 text-muted-foreground">＋</span>
+            <span className="font-medium">新しい練習を始める</span>
           </button>
+
+          {/* セッション一覧 */}
+          {loadingSessions ? (
+            <div className="col-span-2 flex items-center justify-center p-8 border rounded-xl bg-card">
+              <p className="text-muted-foreground">履歴を読み込み中...</p>
+            </div>
+          ) : sessions.length > 0 ? (
+            sessions.map((session) => (
+              <button
+                key={session.id}
+                onClick={() => handleOpenSession(session.id)}
+                className="flex flex-col items-start text-left p-6 min-h-[180px] rounded-xl border border-border bg-card hover:border-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md"
+              >
+                <div className="flex items-center gap-2 mb-3 w-full">
+                  <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium shrink-0">
+                    練習セッション
+                  </span>
+                  <span className="text-sm text-muted-foreground ml-auto whitespace-nowrap">
+                    {new Date(session.created_at).toLocaleDateString('ja-JP')}
+                  </span>
+                </div>
+
+                {/* タイトル (DBのtitleカラムを利用) */}
+                <h3 className="text-lg font-semibold mb-2 line-clamp-1 w-full" title={session.title || "無題のセッション"}>
+                  {session.title || "無題のセッション"}
+                </h3>
+
+                {/* ペルソナ名 */}
+                <div className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0"></div>
+                  <span className="truncate">使用ペルソナ: {session.personas?.name ? session.personas.name : "未設定"}</span>
+                </div>
+
+                <div className="mt-auto pt-4 border-t border-border w-full flex justify-end items-center text-sm font-medium text-primary">
+                  <span>詳細を見る &rarr;</span>
+                </div>
+              </button>
+            ))
+          ) : (
+            <div className="col-span-1 md:col-span-2 flex items-center justify-center p-8 border border-dashed rounded-xl bg-card/50 text-muted-foreground">
+              <p>過去の練習記録はまだありません</p>
+            </div>
+          )}
         </div>
       </main>
+
+      {/* 新規作成モーダル */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-background rounded-xl shadow-lg w-full max-w-md p-6">
+            <h2 className="text-xl font-bold mb-4">新しい練習セッション</h2>
+            <form onSubmit={handleCreateSession}>
+              <div className="mb-6">
+                <label htmlFor="sessionTitle" className="block text-sm font-medium mb-2">
+                  セッション名（テーマなど）
+                </label>
+                <input
+                  id="sessionTitle"
+                  type="text"
+                  autoFocus
+                  required
+                  placeholder="例: IT企業の面接練習 第1回"
+                  value={newSessionTitle}
+                  onChange={(e) => setNewSessionTitle(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={isCreating}
+                  className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreating || !newSessionTitle.trim()}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {isCreating ? "作成中..." : "作成して開始"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

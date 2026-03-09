@@ -1,11 +1,15 @@
 "use client";
 
-
 import { use, useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
-import SlideViewer from "@/src/components/practice/SlideViewer";
+import dynamic from "next/dynamic";
+const SlideViewer = dynamic(
+    () => import("@/src/components/practice/SlideViewer"),
+    { ssr: false }
+);
 import ChatInterface, { Message } from "@/src/components/practice/ChatInterface";
 import PersonaConfig from "@/src/components/setup/PersonaConfig";
+import KnowledgeUpload from "@/src/components/setup/KnowledgeUpload";
 
 export default function PracticePage({
     params,
@@ -13,6 +17,8 @@ export default function PracticePage({
     params: Promise<{ id: string }>;
 }) {
     const { id } = use(params);
+    const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+    const [isKnowledgeModalOpen, setIsKnowledgeModalOpen] = useState(false);
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [streamingText, setStreamingText] = useState<string | null>(null);
@@ -60,7 +66,7 @@ export default function PracticePage({
                 <div className="flex-1 flex flex-col border-r border-border">
                     {/* 左上: スライド */}
                     <div className="flex-1 border-b border-border">
-                        <SlideViewer />
+                        <SlideViewer sessionId={id} />
                     </div>
                     {/* 左下: AIに反論 */}
                     <div className="p-4 bg-white">
@@ -118,13 +124,82 @@ export default function PracticePage({
                             </>
                         )}
                     </div>
-
-                    {/* 設定 */}
-                    <div className="border-t border-border p-4">
-                        <PersonaConfig />
+                    <div className="border-t border-border p-4 space-y-3">
+                        <button
+                            onClick={() => setIsPersonaModalOpen(true)}
+                            className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg px-4 py-2 text-sm font-medium transition-colors border border-border"
+                        >
+                            AIの人物像をカスタマイズ
+                        </button>
+                        <button
+                            onClick={() => setIsKnowledgeModalOpen(true)}
+                            className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg px-4 py-2 text-sm font-medium transition-colors border border-border"
+                        >
+                            前提知識をアップロード
+                        </button>
                     </div>
                 </div>
             </div>
+
+            {/* 人物像設定モーダル */}
+            {isPersonaModalOpen && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 sm:p-6 overflow-y-auto"
+                    onClick={() => setIsPersonaModalOpen(false)}
+                >
+                    <div 
+                        className="bg-background rounded-xl shadow-lg w-full max-w-md p-6 my-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 className="text-xl font-bold mb-4">AIの人物像設定</h2>
+
+                        <PersonaConfig 
+                            sessionId={id}
+                            onSaveSuccess={() => setIsPersonaModalOpen(false)} 
+                        />
+
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setIsPersonaModalOpen(false)}
+                                className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted"
+                            >
+                                閉じる
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 前提知識アップロードモーダル */}
+            {isKnowledgeModalOpen && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 sm:p-6 overflow-y-auto"
+                    onClick={() => setIsKnowledgeModalOpen(false)}
+                >
+                    <div 
+                        className="bg-background rounded-xl shadow-lg w-full max-w-md p-6 my-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 className="text-xl font-bold mb-4">前提知識のアップロード</h2>
+
+                        <KnowledgeUpload 
+                            sessionId={id}
+                            onSaveSuccess={() => setIsKnowledgeModalOpen(false)} 
+                        />
+
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setIsKnowledgeModalOpen(false)}
+                                className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted"
+                            >
+                                閉じる
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
