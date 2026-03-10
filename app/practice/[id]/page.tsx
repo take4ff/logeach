@@ -14,7 +14,7 @@ const SlideRecorder = dynamic(
 import ChatInterface, { Message } from "@/src/components/practice/ChatInterface";
 import PersonaConfig from "@/src/components/setup/PersonaConfig";
 import KnowledgeUpload from "@/src/components/setup/KnowledgeUpload";
-import CharacterAvatar from "@/src/components/practice/CharacterAvatar";
+import CharacterAvatar, { EmotionType } from "@/src/components/practice/CharacterAvatar";
 
 export default function PracticePage({
     params,
@@ -22,6 +22,7 @@ export default function PracticePage({
     params: Promise<{ id: string }>;
 }) {
     const { id } = use(params);
+    const [currentEmotion, setCurrentEmotion] = useState<EmotionType>("neutral");
     const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
     const [isKnowledgeModalOpen, setIsKnowledgeModalOpen] = useState(false);
 
@@ -79,12 +80,16 @@ export default function PracticePage({
         setStreamingText(chunk);
     }, []);
 
-    // ストリーミング完了
     const handleAssistantDone = useCallback((fullText: string, emotion?: string) => {
         setStreamingText(null);
+        
+        // AIから emotion が届いていればそれを使い、なければ neutral に戻す
+        const nextEmotion = (emotion as EmotionType) || "neutral";
+        setCurrentEmotion(nextEmotion);
+
         setMessages((prev) => [
             ...prev,
-            { role: "assistant" as const, text: fullText, emotion },
+            { role: "assistant" as const, text: fullText, emotion: nextEmotion },
         ]);
     }, []);
 
@@ -138,7 +143,7 @@ export default function PracticePage({
                 <div className="w-[420px] flex flex-col bg-white">
                     {/* 右カラム: アバター表示 */}
                     <div className="border-b border-border bg-gray-50/30">
-                        <CharacterAvatar />
+                        <CharacterAvatar emotion={currentEmotion} />
                     </div>
                     {/* AIコメント表示エリア（スクロール） */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
