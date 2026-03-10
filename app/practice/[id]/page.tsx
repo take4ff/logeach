@@ -22,7 +22,26 @@ export default function PracticePage({
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [streamingText, setStreamingText] = useState<string | null>(null);
+    const [historyLoading, setHistoryLoading] = useState(true);
     const bottomRef = useRef<HTMLDivElement | null>(null);
+
+    // セッション開始時にDBから過去のメッセージ履歴を取得
+    useEffect(() => {
+        async function loadHistory() {
+            try {
+                const res = await fetch(`/api/chat_logs/${id}`);
+                if (res.ok) {
+                    const { messages: history } = await res.json();
+                    setMessages(history ?? []);
+                }
+            } catch (err) {
+                console.error("履歴の取得に失敗しました:", err);
+            } finally {
+                setHistoryLoading(false);
+            }
+        }
+        loadHistory();
+    }, [id]);
 
     // 新しいメッセージ・ストリーミング更新のたびに自動スクロール
     useEffect(() => {
@@ -84,7 +103,9 @@ export default function PracticePage({
                 <div className="w-[420px] flex flex-col bg-white">
                     {/* AIコメント表示エリア（スクロール） */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                        {messages.length === 0 && streamingText === null ? (
+                        {historyLoading ? (
+                            <p className="text-foreground-muted text-sm">履歴を読み込み中...</p>
+                        ) : messages.length === 0 && streamingText === null ? (
                             <p className="text-foreground-muted text-sm">
                                 AIのコメントがここに表示されます
                             </p>
@@ -143,19 +164,19 @@ export default function PracticePage({
 
             {/* 人物像設定モーダル */}
             {isPersonaModalOpen && (
-                <div 
+                <div
                     className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 sm:p-6 overflow-y-auto"
                     onClick={() => setIsPersonaModalOpen(false)}
                 >
-                    <div 
+                    <div
                         className="bg-background rounded-xl shadow-lg w-full max-w-md p-6 my-auto"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h2 className="text-xl font-bold mb-4">AIの人物像設定</h2>
 
-                        <PersonaConfig 
+                        <PersonaConfig
                             sessionId={id}
-                            onSaveSuccess={() => setIsPersonaModalOpen(false)} 
+                            onSaveSuccess={() => setIsPersonaModalOpen(false)}
                         />
 
                         <div className="mt-6 flex justify-end gap-3">
@@ -173,19 +194,19 @@ export default function PracticePage({
 
             {/* 前提知識アップロードモーダル */}
             {isKnowledgeModalOpen && (
-                <div 
+                <div
                     className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 sm:p-6 overflow-y-auto"
                     onClick={() => setIsKnowledgeModalOpen(false)}
                 >
-                    <div 
+                    <div
                         className="bg-background rounded-xl shadow-lg w-full max-w-md p-6 my-auto"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h2 className="text-xl font-bold mb-4">前提知識のアップロード</h2>
 
-                        <KnowledgeUpload 
+                        <KnowledgeUpload
                             sessionId={id}
-                            onSaveSuccess={() => setIsKnowledgeModalOpen(false)} 
+                            onSaveSuccess={() => setIsKnowledgeModalOpen(false)}
                         />
 
                         <div className="mt-6 flex justify-end gap-3">
