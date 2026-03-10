@@ -29,12 +29,15 @@ export default function PracticePage({
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
 
+    // localStorage からスライドURLを読み取る（SlideViewer の onPdfUrlReady で更新）
+    const [slideUrl, setSlideUrl] = useState<string | null>(null);
+
     const handleFeedbackReady = useCallback(
         (slideAudios: { page: number; blob: Blob }[]) => {
-            // TODO: 録音データを AI フィードバック API に送信する
-            console.log("[Logeach] フィードバック依頼:", slideAudios);
+            // TODO: 録音データを AI フィードバック API に送信する（slideUrl も渡す）
+            console.log("[Logeach] フィードバック依頼:", slideAudios, "slideUrl:", slideUrl);
         },
-        []
+        [slideUrl]
     );
 
     const [messages, setMessages] = useState<Message[]>([]);
@@ -106,6 +109,7 @@ export default function PracticePage({
                             sessionId={id}
                             onPageChange={setCurrentPage}
                             onNumPagesReady={setTotalPages}
+                            onPdfUrlReady={setSlideUrl}
                         />
                     </div>
                     {/* 左中: 録音コントローラー */}
@@ -122,6 +126,7 @@ export default function PracticePage({
                         <label className="block text-sm font-medium mb-2">AIに反論</label>
                         <ChatInterface
                             sessionId={id}
+                            slideUrl={slideUrl ?? undefined}
                             onUserMessage={handleUserMessage}
                             onAssistantChunk={handleAssistantChunk}
                             onAssistantDone={handleAssistantDone}

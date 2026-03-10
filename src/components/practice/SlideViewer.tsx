@@ -19,12 +19,15 @@ interface SlideViewerProps {
     onPageChange?: (newPage: number) => void;
     /** PDF の総ページ数が確定したときに呼ばれるコールバック */
     onNumPagesReady?: (totalPages: number) => void;
+    /** PDF の公開 URL が確定したときに呼ばれるコールバック */
+    onPdfUrlReady?: (url: string) => void;
 }
 
 export default function SlideViewer({
     sessionId = "default",
     onPageChange,
     onNumPagesReady,
+    onPdfUrlReady,
 }: SlideViewerProps) {
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [pdfFileName, setPdfFileName] = useState<string | null>(null);
@@ -43,11 +46,12 @@ export default function SlideViewer({
                 const { url, name } = JSON.parse(stored);
                 setPdfUrl(url);
                 setPdfFileName(name);
+                onPdfUrlReady?.(url);
             } catch {
                 localStorage.removeItem(storageKey(sessionId));
             }
         }
-    }, [sessionId]);
+    }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ファイルを選択・ドロップしたときの共通処理
     const handleFile = useCallback(
@@ -73,6 +77,7 @@ export default function SlideViewer({
                     storageKey(sessionId),
                     JSON.stringify({ url: publicUrl, name: file.name })
                 );
+                onPdfUrlReady?.(publicUrl);
             } catch (err) {
                 console.warn("Supabase upload failed:", err);
                 // アップロード失敗はプレビュー表示には影響させない
