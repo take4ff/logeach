@@ -15,9 +15,17 @@ const storageKey = (sessionId: string) => `slide_pdf_${sessionId}`;
 interface SlideViewerProps {
     /** 練習セッション ID（Supabase Storage のパスに使用） */
     sessionId?: string;
+    /** ページが変わったときに呼ばれるコールバック */
+    onPageChange?: (newPage: number) => void;
+    /** PDF の総ページ数が確定したときに呼ばれるコールバック */
+    onNumPagesReady?: (totalPages: number) => void;
 }
 
-export default function SlideViewer({ sessionId = "default" }: SlideViewerProps) {
+export default function SlideViewer({
+    sessionId = "default",
+    onPageChange,
+    onNumPagesReady,
+}: SlideViewerProps) {
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [pdfFileName, setPdfFileName] = useState<string | null>(null);
     const [numPages, setNumPages] = useState<number>(0);
@@ -96,8 +104,16 @@ export default function SlideViewer({ sessionId = "default" }: SlideViewerProps)
     };
 
     // ページナビゲーション
-    const prevPage = () => setCurrentPage((p) => Math.max(1, p - 1));
-    const nextPage = () => setCurrentPage((p) => Math.min(numPages, p + 1));
+    const prevPage = () => {
+        const next = Math.max(1, currentPage - 1);
+        setCurrentPage(next);
+        if (next !== currentPage) onPageChange?.(next);
+    };
+    const nextPage = () => {
+        const next = Math.min(numPages, currentPage + 1);
+        setCurrentPage(next);
+        if (next !== currentPage) onPageChange?.(next);
+    };
 
     // ---- 未アップロード時の UI ----
     if (!pdfUrl) {
@@ -163,6 +179,7 @@ export default function SlideViewer({ sessionId = "default" }: SlideViewerProps)
                     onLoadSuccess={({ numPages }) => {
                         setNumPages(numPages);
                         setCurrentPage(1);
+                        onNumPagesReady?.(numPages);
                     }}
                     loading={
                         <div className="flex flex-col items-center gap-2 text-gray-300">
