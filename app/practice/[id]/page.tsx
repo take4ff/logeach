@@ -10,6 +10,7 @@ const SlideViewer = dynamic(
 import ChatInterface, { Message } from "@/src/components/practice/ChatInterface";
 import PersonaConfig from "@/src/components/setup/PersonaConfig";
 import KnowledgeUpload from "@/src/components/setup/KnowledgeUpload";
+import CharacterAvatar from "@/src/components/practice/CharacterAvatar";
 
 export default function PracticePage({
     params,
@@ -82,6 +83,10 @@ export default function PracticePage({
 
                 {/* 右カラム: AIコメント + 設定 */}
                 <div className="w-[420px] flex flex-col bg-white">
+                    {/* 右カラム: アバター表示 */}
+                    <div className="border-b border-border bg-gray-50/30">
+                        <CharacterAvatar />
+                    </div>
                     {/* AIコメント表示エリア（スクロール） */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                         {messages.length === 0 && streamingText === null ? (
