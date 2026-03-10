@@ -7,6 +7,10 @@ const SlideViewer = dynamic(
     () => import("@/src/components/practice/SlideViewer"),
     { ssr: false }
 );
+const SlideRecorder = dynamic(
+    () => import("@/src/components/practice/SlideRecorder"),
+    { ssr: false }
+);
 import ChatInterface, { Message } from "@/src/components/practice/ChatInterface";
 import PersonaConfig from "@/src/components/setup/PersonaConfig";
 import KnowledgeUpload from "@/src/components/setup/KnowledgeUpload";
@@ -20,6 +24,18 @@ export default function PracticePage({
     const { id } = use(params);
     const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
     const [isKnowledgeModalOpen, setIsKnowledgeModalOpen] = useState(false);
+
+    // スライドの現在ページ・総ページ数（SlideRecorder との共有）
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+
+    const handleFeedbackReady = useCallback(
+        (slideAudios: { page: number; blob: Blob }[]) => {
+            // TODO: 録音データを AI フィードバック API に送信する
+            console.log("[Logeach] フィードバック依頼:", slideAudios);
+        },
+        []
+    );
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [streamingText, setStreamingText] = useState<string | null>(null);
@@ -86,7 +102,20 @@ export default function PracticePage({
                 <div className="flex-1 flex flex-col border-r border-border">
                     {/* 左上: スライド */}
                     <div className="flex-1 border-b border-border">
-                        <SlideViewer sessionId={id} />
+                        <SlideViewer
+                            sessionId={id}
+                            onPageChange={setCurrentPage}
+                            onNumPagesReady={setTotalPages}
+                        />
+                    </div>
+                    {/* 左中: 録音コントローラー */}
+                    <div className="px-4 py-2 bg-gray-950">
+                        <SlideRecorder
+                            totalPages={totalPages}
+                            currentPage={currentPage}
+                            sessionId={id}
+                            onFeedbackReady={handleFeedbackReady}
+                        />
                     </div>
                     {/* 左下: AIに反論 */}
                     <div className="p-4 bg-white">
