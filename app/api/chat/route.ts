@@ -1,13 +1,19 @@
 import { GoogleGenAI } from '@google/genai';
+import { saveMessage } from '@/src/lib/messages';
 
 const client = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? '' });
 
 export async function POST(req: Request) {
     try {
-        const { sessionId: _sessionId, message, persona } = await req.json();
+        const { sessionId, message, persona } = await req.json();
 
         if (!message) {
             return Response.json({ error: 'message は必須です' }, { status: 400 });
+        }
+
+        // ユーザーのメッセージを保存
+        if (sessionId) {
+            await saveMessage(sessionId, 'user', message);
         }
 
         const systemInstruction = persona
@@ -37,10 +43,14 @@ export async function POST(req: Request) {
                         }
                     }
 
-
                     const emotionMatch = fullText.match(/emotion:\s*(.+)/);
                     const emotion = emotionMatch ? emotionMatch[1].trim() : 'neutral';
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ emotion })}\n\n`));
+
+                    // AIの応答をDBに保存
+                    if (sessionId) {
+                        await saveMessage(sessionId, 'assistant', fullText, emotion);
+                    }
 
                     controller.enqueue(encoder.encode('data: [DONE]\n\n'));
                 } catch (err) {
