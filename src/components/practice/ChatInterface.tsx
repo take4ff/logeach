@@ -13,6 +13,7 @@ interface ChatInterfaceProps {
     sessionId: string;
     persona?: string;
     slideUrl?: string;
+    personaData?: PersonaData;
     onUserMessage?: (text: string) => void;
     onAssistantChunk?: (chunk: string) => void;
     onAssistantDone?: (fullText: string, emotion?: string) => void;
