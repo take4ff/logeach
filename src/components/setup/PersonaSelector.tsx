@@ -62,6 +62,47 @@ export default function PersonaSelector({
         }
     };
 
+    // ペルソナを削除する
+    const handleDelete = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation(); // 行のクリック（選択）を発火させない
+        if (!confirm("本当にこのペルソナを削除しますか？")) return;
+
+        try {
+            // 現在選択中のものを削除したら選択状態をクリア
+            if (selectedId === id) setSelectedId(null);
+
+            // このペルソナを参照しているセッションを先に解除（外部キー制約対策）
+            const { error: unlinkError } = await supabase
+                .from("sessions")
+                .update({ persona_id: null })
+                .eq("persona_id", id);
+
+            if (unlinkError) throw unlinkError;
+
+            // Supabaseから削除
+            const { error: deleteError } = await supabase
+                .from("personas")
+                .delete()
+                .eq("id", id);
+
+            if (deleteError) throw deleteError;
+
+            // ローカルステートから除外
+            setPersonas((prev) => prev.filter((p) => p.id !== id));
+
+            // 削除したペルソナが現在のセッションに適用されていた場合は親に通知
+            if (id === currentPersonaId) {
+                onSelect();
+            }
+        } catch (err: unknown) {
+            const msg = err instanceof Error
+                ? err.message
+                : (err as { message?: string })?.message ?? JSON.stringify(err);
+            console.error("ペルソナの削除に失敗しました:", msg);
+            alert(`削除に失敗しました。\n${msg}`);
+        }
+    };
+
     if (loading) {
         return <p className="text-sm text-muted-foreground">読み込み中...</p>;
     }
@@ -84,20 +125,38 @@ export default function PersonaSelector({
                     const isSelected = selectedId === p.id;
 
                     return (
-                        <button
+                        <div
                             key={p.id}
-                            type="button"
+                            role="button"
+                            tabIndex={0}
                             onClick={() => setSelectedId(p.id)}
-                            className={`w-full text-left rounded-xl border px-4 py-3 transition-all ${isSelected
+                            onKeyDown={(e) => e.key === 'Enter' && setSelectedId(p.id)}
+                            className={`w-full text-left rounded-xl border px-4 py-3 transition-all cursor-pointer ${isSelected
                                     ? "border-primary bg-primary/5 ring-1 ring-primary"
                                     : "border-border hover:border-primary/40 hover:bg-muted/40"
                                 }`}
                         >
                             <div className="flex items-center justify-between gap-2">
-                                <p className="font-medium text-sm truncate">{p.name}</p>
-                                {isSelected && (
-                                    <span className="text-primary text-xs font-semibold shrink-0">✓ 選択中</span>
-                                )}
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                    <p className="font-medium text-sm truncate">{p.name}</p>
+                                    {isSelected && (
+                                        <span className="text-primary text-xs font-semibold shrink-0">✓ 選択中</span>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={(e) => handleDelete(e, p.id)}
+                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
+                                    title="削除"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M3 6h18"></path>
+                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                                    </svg>
+                                </button>
                             </div>
                             {personalityTrait && (
                                 <p className="text-xs text-muted-foreground mt-1 truncate">
@@ -114,7 +173,7 @@ export default function PersonaSelector({
                                     背景: {p.background}
                                 </p>
                             )}
-                        </button>
+                        </div>
                     );
                 })}
             </div>
