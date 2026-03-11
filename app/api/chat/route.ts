@@ -3,9 +3,46 @@ import { saveMessage } from '@/src/lib/messages';
 
 const client = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? '' });
 
+export interface PersonaData {
+    name: string;
+    personality: string;
+    landmines: string;
+    background: string;
+}
+
+/** ペルソナ情報からシステムプロンプトを組み立てる */
+function buildSystemPrompt(personaData?: PersonaData): string {
+    if (!personaData || !personaData.name) {
+        return [
+            '返答の最後に必ず、あなたの感情を "emotion: <感情名>" の形式で1行追加してください（例: emotion: 興味深い）。',
+        ].join('\n');
+    }
+
+    const { name, personality, landmines, background } = personaData;
+
+    return [
+        `あなたは${name}です。`,
+        personality ? `${personality}な性格です。` : '',
+        background ? `背景・専門分野: ${background}` : '',
+        '',
+        landmines
+            ? [
+                `【地雷ポイント】あなたは以下のことを特に嫌います: ${landmines}`,
+                `ユーザーの発言がこの地雷ポイントに触れた場合は、感情として必ず emotion: angry を返してください。`,
+            ].join('\n')
+            : '',
+        '',
+        '返答の最後に必ず、あなたの感情を "emotion: <感情名>" の形式で1行追加してください。',
+        '感情の例: neutral / satisfied / skeptical / angry / impressed / thinking',
+    ]
+        .filter((line) => line !== undefined)
+        .join('\n')
+        .trim();
+}
+
 export async function POST(req: Request) {
     try {
-        const { sessionId, message, persona, slideUrl } = await req.json();
+        const { sessionId, message, persona, slideUrl, personaData } = await req.json();
 
         if (!message) {
             return Response.json({ error: 'message は必須です' }, { status: 400 });
@@ -16,14 +53,10 @@ export async function POST(req: Request) {
             await saveMessage(sessionId, 'user', message);
         }
 
+        const systemInstruction = buildSystemPrompt(personaData);
         const slideInstruction = slideUrl
             ? 'ユーザーが添付したスライドの内容を踏まえて反論・コメントしてください。'
             : '';
-
-        const systemInstruction = persona
-            ? `あなたは${persona}として振る舞ってください。${slideInstruction}返答の最後に必ず、あなたの感情を "emotion: <感情名>" の形式で1行追加してください（例: emotion: 興味深い）。`
-            : `${slideInstruction}返答の最後に必ず、あなたの感情を "emotion: <感情名>" の形式で1行追加してください（例: emotion: 興味深い）。`;
-
 
         let contents: ContentListUnion;
         if (slideUrl) {
@@ -49,7 +82,6 @@ export async function POST(req: Request) {
                 systemInstruction,
             },
         });
-
 
         const stream = new ReadableStream({
             async start(controller) {

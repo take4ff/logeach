@@ -8,12 +8,12 @@ import { useAuth } from "@/src/components/auth/AuthProvider";
  * PersonaConfig コンポーネント
  * AIの人物像カスタマイズUIと前提知識アップロードを実装
  */
-export default function PersonaConfig({ 
+export default function PersonaConfig({
     sessionId,
-    onSaveSuccess 
-}: { 
+    onSaveSuccess
+}: {
     sessionId: string;
-    onSaveSuccess?: () => void 
+    onSaveSuccess?: () => void
 }) {
     const { user } = useAuth();
     const [name, setName] = useState("");
@@ -26,7 +26,7 @@ export default function PersonaConfig({
     useEffect(() => {
         const fetchPersona = async () => {
             if (!user || !sessionId) return;
-            
+
             // 1. セッション情報を取得して persona_id を確認
             const { data: sessionData, error: sessionError } = await supabase
                 .from("sessions")
@@ -50,7 +50,7 @@ export default function PersonaConfig({
                 const traits = data.traits || [];
                 const personalityTrait = traits.find((t: string) => t.startsWith("性格: "));
                 const landminesTrait = traits.find((t: string) => t.startsWith("地雷ポイント: "));
-                
+
                 if (personalityTrait) setPersonality(personalityTrait.replace("性格: ", ""));
                 if (landminesTrait) setLandmines(landminesTrait.replace("地雷ポイント: ", ""));
             }
@@ -64,16 +64,6 @@ export default function PersonaConfig({
 
         setIsSaving(true);
         try {
-            // 1. まず現在のセッションに紐付いている persona_id を取得
-            const { data: sessionData, error: sessionFetchError } = await supabase
-                .from("sessions")
-                .select("persona_id")
-                .eq("id", sessionId)
-                .single();
-
-            if (sessionFetchError) throw sessionFetchError;
-
-            const existingPersonaId = sessionData?.persona_id;
             const personaDataToSave = {
                 user_id: user.id,
                 name: name.trim(),
@@ -84,42 +74,27 @@ export default function PersonaConfig({
                 background: background.trim()
             };
 
-            if (existingPersonaId) {
-                // 既存の人物像を更新
-                const { error: personaUpdateError } = await supabase
-                    .from("personas")
-                    .update(personaDataToSave)
-                    .eq("id", existingPersonaId);
+            // 常に新規ペルソナとして作成する（既存レコードは更新しない）
+            const { data: newPersonaData, error: personaInsertError } = await supabase
+                .from("personas")
+                .insert([personaDataToSave])
+                .select()
+                .single();
 
-                if (personaUpdateError) throw personaUpdateError;
-            } else {
-                // 新規作成
-                const { data: newPersonaData, error: personaInsertError } = await supabase
-                    .from("personas")
-                    .insert([personaDataToSave])
-                    .select()
-                    .single();
+            if (personaInsertError) throw personaInsertError;
 
-                if (personaInsertError) throw personaInsertError;
+            // セッションに新しいペルソナを紐付ける
+            if (newPersonaData) {
+                const { error: sessionUpdateError } = await supabase
+                    .from("sessions")
+                    .update({ persona_id: newPersonaData.id })
+                    .eq("id", sessionId);
 
-                // セッションと新規人物像を紐付ける
-                if (newPersonaData) {
-                    const { error: sessionUpdateError } = await supabase
-                        .from("sessions")
-                        .update({ persona_id: newPersonaData.id })
-                        .eq("id", sessionId);
-
-                    if (sessionUpdateError) throw sessionUpdateError;
-                }
+                if (sessionUpdateError) throw sessionUpdateError;
             }
 
             alert("人物像を保存しました！");
-            
-            // 成功時のコールバックを呼ぶ（モーダルを閉じるなど）
             if (onSaveSuccess) onSaveSuccess();
-            
-            // 以前はここでステートをリセットしていましたが、
-            // 「設定を残したい」という要望に合わせてリセット処理を削除しました。
         } catch (error: any) {
             console.error("保存エラー:", error);
             alert(`保存に失敗しました: ${error.message || "不明なエラー"}`);

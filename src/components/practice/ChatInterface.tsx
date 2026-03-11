@@ -1,7 +1,7 @@
 "use client";
 
-
 import { useState, useRef, useCallback } from "react";
+import type { PersonaData } from "@/app/api/chat/route";
 
 export interface Message {
     role: "user" | "assistant";
@@ -20,6 +20,7 @@ interface ChatInterfaceProps {
 
 export default function ChatInterface({
     sessionId,
+    personaData,
     persona,
     slideUrl,
     onUserMessage,
@@ -48,7 +49,7 @@ export default function ChatInterface({
                 const res = await fetch("/api/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ sessionId, message: trimmed, persona, slideUrl }),
+                    body: JSON.stringify({ sessionId, message: trimmed, persona, slideUrl , personaData }),
                     signal: controller.signal,
                 });
 
@@ -90,7 +91,7 @@ export default function ChatInterface({
                 setIsLoading(false);
             }
         },
-        [input, isLoading, sessionId, persona, slideUrl, onUserMessage, onAssistantChunk, onAssistantDone]
+        [input, isLoading, sessionId, persona, slideUrl, personaData, onUserMessage, onAssistantChunk, onAssistantDone]
     );
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

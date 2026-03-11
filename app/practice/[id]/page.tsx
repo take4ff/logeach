@@ -13,8 +13,11 @@ const SlideRecorder = dynamic(
 );
 import ChatInterface, { Message } from "@/src/components/practice/ChatInterface";
 import PersonaConfig from "@/src/components/setup/PersonaConfig";
+import PersonaSelector from "@/src/components/setup/PersonaSelector";
 import KnowledgeUpload from "@/src/components/setup/KnowledgeUpload";
 import CharacterAvatar, { EmotionType } from "@/src/components/practice/CharacterAvatar";
+import { supabase } from "@/src/lib/supabase";
+import type { PersonaData } from "@/app/api/chat/route";
 
 export default function PracticePage({
     params,
@@ -24,6 +27,7 @@ export default function PracticePage({
     const { id } = use(params);
     const [currentEmotion, setCurrentEmotion] = useState<EmotionType>("neutral");
     const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+    const [isPersonaSelectorOpen, setIsPersonaSelectorOpen] = useState(false);
     const [isKnowledgeModalOpen, setIsKnowledgeModalOpen] = useState(false);
 
     // スライドの現在ページ・総ページ数（SlideRecorder との共有）
@@ -44,7 +48,38 @@ export default function PracticePage({
     const [messages, setMessages] = useState<Message[]>([]);
     const [streamingText, setStreamingText] = useState<string | null>(null);
     const [historyLoading, setHistoryLoading] = useState(true);
+    const [currentPersona, setCurrentPersona] = useState<PersonaData | null>(null);
+    const [sessionPersonaId, setSessionPersonaId] = useState<string | null>(null);
     const bottomRef = useRef<HTMLDivElement | null>(null);
+
+    /** sessions.persona_id → personas テーブルからペルソナ情報を取得 */
+    const loadPersona = useCallback(async () => {
+        const { data: sessionData } = await supabase
+            .from("sessions")
+            .select("persona_id")
+            .eq("id", id)
+            .single();
+        if (!sessionData?.persona_id) return;
+        setSessionPersonaId(sessionData.persona_id);
+
+        const { data } = await supabase
+            .from("personas")
+            .select("name, traits, background")
+            .eq("id", sessionData.persona_id)
+            .single();
+        if (!data) return;
+
+        const traits: string[] = data.traits ?? [];
+        const personalityTrait = traits.find((t: string) => t.startsWith("性格: "));
+        const landminesTrait = traits.find((t: string) => t.startsWith("地雷ポイント: "));
+
+        setCurrentPersona({
+            name: data.name ?? "",
+            personality: personalityTrait?.replace("性格: ", "") ?? "",
+            landmines: landminesTrait?.replace("地雷ポイント: ", "") ?? "",
+            background: data.background ?? "",
+        });
+    }, [id]);
 
     // セッション開始時にDBから過去のメッセージ履歴を取得
     useEffect(() => {
@@ -63,6 +98,11 @@ export default function PracticePage({
         }
         loadHistory();
     }, [id]);
+
+    // セッション開始時にペルソナ情報を取得
+    useEffect(() => {
+        loadPersona();
+    }, [loadPersona]);
 
     // 新しいメッセージ・ストリーミング更新のたびに自動スクロール
     useEffect(() => {
@@ -131,6 +171,7 @@ export default function PracticePage({
                         <label className="block text-sm font-medium mb-2">AIに反論</label>
                         <ChatInterface
                             sessionId={id}
+                            personaData={currentPersona ?? undefined}
                             slideUrl={slideUrl ?? undefined}
                             onUserMessage={handleUserMessage}
                             onAssistantChunk={handleAssistantChunk}
@@ -190,6 +231,24 @@ export default function PracticePage({
                         )}
                     </div>
                     <div className="border-t border-border p-4 space-y-3">
+                        {/* 現在のペルソナ表示 */}
+                        {currentPersona && (
+                            <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 flex items-center gap-2">
+                                <span className="text-base">👤</span>
+                                <div className="min-w-0">
+                                    <p className="font-medium text-foreground truncate">{currentPersona.name}</p>
+                                    {currentPersona.landmines && (
+                                        <p className="truncate">地雷: {currentPersona.landmines}</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        <button
+                            onClick={() => setIsPersonaSelectorOpen(true)}
+                            className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg px-4 py-2 text-sm font-medium transition-colors border border-border"
+                        >
+                            ペルソナを選択
+                        </button>
                         <button
                             onClick={() => setIsPersonaModalOpen(true)}
                             className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg px-4 py-2 text-sm font-medium transition-colors border border-border"
@@ -206,6 +265,40 @@ export default function PracticePage({
                 </div>
             </div>
 
+            {/* ペルソナ選択モーダル */}
+            {isPersonaSelectorOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 sm:p-6 overflow-y-auto"
+                    onClick={() => setIsPersonaSelectorOpen(false)}
+                >
+                    <div
+                        className="bg-background rounded-xl shadow-lg w-full max-w-md p-6 my-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 className="text-xl font-bold mb-4">ペルソナを選択</h2>
+
+                        <PersonaSelector
+                            sessionId={id}
+                            currentPersonaId={sessionPersonaId}
+                            onSelect={() => {
+                                setIsPersonaSelectorOpen(false);
+                                loadPersona();
+                            }}
+                        />
+
+                        <div className="mt-6 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setIsPersonaSelectorOpen(false)}
+                                className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted"
+                            >
+                                閉じる
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* 人物像設定モーダル */}
             {isPersonaModalOpen && (
                 <div
@@ -220,7 +313,10 @@ export default function PracticePage({
 
                         <PersonaConfig
                             sessionId={id}
-                            onSaveSuccess={() => setIsPersonaModalOpen(false)}
+                            onSaveSuccess={() => {
+                                setIsPersonaModalOpen(false);
+                                loadPersona(); // 保存後にペルソナ情報を再取得
+                            }}
                         />
 
                         <div className="mt-6 flex justify-end gap-3">
