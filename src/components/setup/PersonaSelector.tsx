@@ -71,6 +71,14 @@ export default function PersonaSelector({
             // 現在選択中のものを削除したら選択状態をクリア
             if (selectedId === id) setSelectedId(null);
 
+            // このペルソナを参照しているセッションを先に解除（外部キー制約対策）
+            const { error: unlinkError } = await supabase
+                .from("sessions")
+                .update({ persona_id: null })
+                .eq("persona_id", id);
+
+            if (unlinkError) throw unlinkError;
+
             // Supabaseから削除
             const { error: deleteError } = await supabase
                 .from("personas")
@@ -82,17 +90,16 @@ export default function PersonaSelector({
             // ローカルステートから除外
             setPersonas((prev) => prev.filter((p) => p.id !== id));
 
-            // もし削除したペルソナがこのセッションで現在適用されていたものなら、セッションからも紐付けを解除する
+            // 削除したペルソナが現在のセッションに適用されていた場合は親に通知
             if (id === currentPersonaId) {
-                await supabase
-                    .from("sessions")
-                    .update({ persona_id: null })
-                    .eq("id", sessionId);
-                onSelect(); // 親に変更を通知して再フェッチさせる
+                onSelect();
             }
         } catch (err: unknown) {
-            console.error("ペルソナの削除に失敗しました:", err);
-            alert("削除に失敗しました。もう一度お試しください。");
+            const msg = err instanceof Error
+                ? err.message
+                : (err as { message?: string })?.message ?? JSON.stringify(err);
+            console.error("ペルソナの削除に失敗しました:", msg);
+            alert(`削除に失敗しました。\n${msg}`);
         }
     };
 
@@ -118,11 +125,13 @@ export default function PersonaSelector({
                     const isSelected = selectedId === p.id;
 
                     return (
-                        <button
+                        <div
                             key={p.id}
-                            type="button"
+                            role="button"
+                            tabIndex={0}
                             onClick={() => setSelectedId(p.id)}
-                            className={`w-full text-left rounded-xl border px-4 py-3 transition-all ${isSelected
+                            onKeyDown={(e) => e.key === 'Enter' && setSelectedId(p.id)}
+                            className={`w-full text-left rounded-xl border px-4 py-3 transition-all cursor-pointer ${isSelected
                                     ? "border-primary bg-primary/5 ring-1 ring-primary"
                                     : "border-border hover:border-primary/40 hover:bg-muted/40"
                                 }`}
@@ -164,7 +173,7 @@ export default function PersonaSelector({
                                     背景: {p.background}
                                 </p>
                             )}
-                        </button>
+                        </div>
                     );
                 })}
             </div>
