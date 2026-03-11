@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import type { PersonaData } from "@/app/api/chat/route";
 
 export interface Message {
@@ -30,7 +30,16 @@ export default function ChatInterface({
 }: ChatInterfaceProps) {
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [userApiKey, setUserApiKey] = useState("");
     const abortControllerRef = useRef<AbortController | null>(null);
+
+    // 初回マウント時にlocalStorageからAPIキーを取得
+    useEffect(() => {
+        const savedKey = localStorage.getItem("gemini_api_key");
+        if (savedKey) {
+            setUserApiKey(savedKey);
+        }
+    }, []);
 
     const handleSubmit = useCallback(
         async (e: React.FormEvent) => {
@@ -50,7 +59,7 @@ export default function ChatInterface({
                 const res = await fetch("/api/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ sessionId, message: trimmed, persona, slideUrl , personaData }),
+                    body: JSON.stringify({ sessionId, message: trimmed, persona, slideUrl, personaData, apiKey: userApiKey }),
                     signal: controller.signal,
                 });
 
@@ -92,8 +101,18 @@ export default function ChatInterface({
                 setIsLoading(false);
             }
         },
-        [input, isLoading, sessionId, persona, slideUrl, personaData, onUserMessage, onAssistantChunk, onAssistantDone]
+        [input, isLoading, sessionId, persona, slideUrl, personaData, userApiKey, onUserMessage, onAssistantChunk, onAssistantDone]
     );
+
+    // APIキーが設定されていない場合のエラー表示
+    if (!userApiKey) {
+        return (
+            <div className="flex flex-col items-center justify-center p-4 bg-orange-50 border border-orange-200 rounded-lg text-orange-800 text-sm">
+                <p className="font-medium mb-1">⚠️ APIキーが設定されていません</p>
+                <p>ホーム画面の「⚙️設定」からご自身のGemini APIキーを登録してください。</p>
+            </div>
+        );
+    }
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
