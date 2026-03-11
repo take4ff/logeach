@@ -1,8 +1,6 @@
 import { GoogleGenAI, type ContentListUnion } from '@google/genai';
 import { saveMessage } from '@/src/lib/messages';
 
-const client = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? '' });
-
 export interface PersonaData {
     name: string;
     personality: string;
@@ -42,11 +40,17 @@ function buildSystemPrompt(personaData?: PersonaData): string {
 
 export async function POST(req: Request) {
     try {
-        const { sessionId, message, persona, slideUrl, personaData } = await req.json();
+        const { sessionId, message, persona, slideUrl, personaData, apiKey } = await req.json();
+
+        if (!apiKey) {
+            return Response.json({ error: 'APIキーが設定されていません。ホーム画面から設定してください。' }, { status: 400 });
+        }
 
         if (!message) {
             return Response.json({ error: 'message は必須です' }, { status: 400 });
         }
+
+        const client = new GoogleGenAI({ apiKey });
 
         // ユーザーのメッセージを保存
         if (sessionId) {
