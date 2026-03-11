@@ -208,11 +208,7 @@ export default function PracticePage({
                                                 }`}
                                         >
                                             {msg.text}
-                                            {msg.emotion && (
-                                                <p className="mt-1 text-xs text-gray-500 italic">
-                                                    😊 {msg.emotion}
-                                                </p>
-                                            )}
+
                                         </div>
                                     </div>
                                 ))}

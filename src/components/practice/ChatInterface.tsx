@@ -94,7 +94,9 @@ export default function ChatInterface({
                         } catch { /* ignore */ }
                     }
                 }
-                onAssistantDone?.(accumulated, emotion);
+                // emotion: xxx 行を表示テキストから除去する
+                const cleanedText = accumulated.replace(/\n?emotion:\s*.+$/m, '').trimEnd();
+                onAssistantDone?.(cleanedText, emotion);
             } catch (err: unknown) {
                 if (err instanceof Error && err.name !== "AbortError") {
                     console.error("Chat API エラー:", err);
