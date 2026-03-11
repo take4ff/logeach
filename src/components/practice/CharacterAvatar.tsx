@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import { supabase } from '@/src/lib/supabase';
 
 export type EmotionType = 'neutral' | 'thinking' | 'satisfied' | 'skeptical' | 'angry' | 'impressed';
 
@@ -30,24 +30,30 @@ export default function CharacterAvatar({ emotion = 'neutral' }: CharacterAvatar
   const emotionConfigs: Record<EmotionType, { bg: string; animation: string }> = {
     neutral:   { bg: 'bg-transparent', animation: '' },
     thinking:  { bg: 'bg-transparent', animation: 'animate-floating' },
-    satisfied: { bg: 'bg-green-100/40', animation: '' },
-    skeptical: { bg: 'bg-orange-100/40', animation: '' },
-    angry:     { bg: 'bg-red-100/40',    animation: 'animate-shake' },
-    impressed: { bg: 'bg-yellow-100/40', animation: '' },
+    satisfied: { bg: 'bg-green-100/60', animation: '' }, // 薄いグリーン
+    skeptical: { bg: 'bg-orange-100/60', animation: '' }, // 薄いオレンジ
+    angry:     { bg: 'bg-red-100/60',    animation: 'animate-shake' }, // 薄いレッド + 振動
+    impressed: { bg: 'bg-yellow-100/60', animation: '' }, // 薄いゴールド系
   };
 
   const config = emotionConfigs[safeEmotion];
 
+  // 4. SupabaseのPublic URLを取得する
+  const { data } = supabase.storage.from('avatars').getPublicUrl(`default/${safeEmotion}.png`);
+  const avatarUrl = data?.publicUrl || `/characters/${safeEmotion}.png`;
+
   return (
     <div className={`w-full flex justify-center p-4 transition-colors duration-300 ${config.bg}`}>
       <div className={`relative w-full h-48 md:h-60 transition-all duration-300 ${config.animation}`}>
-        <Image
-          // 画像ファイル名も変換後の safeEmotion を使う
-          src={`/characters/${safeEmotion}.png`}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={avatarUrl}
           alt={`Character emotion: ${safeEmotion}`}
-          fill
-          priority
-          className="object-contain"
+          className="object-contain w-full h-full"
+          onError={(e) => {
+              // URLが間違っていた場合やバケットが存在しない場合はローカル画像にフォールバック
+              e.currentTarget.src = `/characters/${safeEmotion}.png`;
+          }}
         />
       </div>
     </div>

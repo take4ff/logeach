@@ -32,12 +32,24 @@ export default function HomePage() {
   const [newSessionTitle, setNewSessionTitle] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
+  // 設定モーダル（APIキー）用ステート
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+
   // 認証チェック
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
     }
   }, [user, loading, router]);
+
+  // ローカルストレージからAPIキーを読み込む
+  useEffect(() => {
+    const savedKey = localStorage.getItem("gemini_api_key");
+    if (savedKey) {
+      setApiKeyInput(savedKey);
+    }
+  }, []);
 
   // セッション一覧の取得
   useEffect(() => {
@@ -135,6 +147,12 @@ export default function HomePage() {
             <span className="text-sm text-muted-foreground hidden sm:inline">
               {user.displayName ?? user.email}
             </span>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="text-sm px-4 py-2 text-muted-foreground hover:bg-muted rounded transition-colors flex items-center gap-1"
+            >
+              <span>⚙️</span> 設定
+            </button>
             <button
               onClick={() => signOut()}
               className="text-sm px-4 py-2 text-muted-foreground hover:bg-muted rounded transition-colors"
@@ -235,6 +253,68 @@ export default function HomePage() {
                   className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   {isCreating ? "作成中..." : "作成して開始"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 設定モーダル */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-background rounded-xl shadow-lg w-full max-w-md p-6">
+            <h2 className="text-xl font-bold mb-4">設定</h2>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              localStorage.setItem("gemini_api_key", apiKeyInput);
+              setIsSettingsOpen(false);
+              alert("APIキーを保存しました。");
+            }}>
+              <div className="mb-6">
+                <label htmlFor="apiKey" className="block text-sm font-medium mb-2">
+                  Gemini API キー
+                </label>
+                <div className="text-xs text-muted-foreground mb-3">
+                  APIキーはブラウザにのみ保存され、サーバーには送信・蓄積されません。<br />
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline"
+                  >
+                    Google AI Studioから取得
+                  </a>
+                </div>
+                <input
+                  id="apiKey"
+                  type="password"
+                  autoFocus
+                  required
+                  placeholder="AIzaSy..."
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const savedKey = localStorage.getItem("gemini_api_key");
+                    setApiKeyInput(savedKey || "");
+                    setIsSettingsOpen(false);
+                  }}
+                  className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="submit"
+                  disabled={!apiKeyInput.trim()}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  保存
                 </button>
               </div>
             </form>
