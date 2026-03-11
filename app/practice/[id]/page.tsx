@@ -15,7 +15,7 @@ import ChatInterface, { Message } from "@/src/components/practice/ChatInterface"
 import PersonaConfig from "@/src/components/setup/PersonaConfig";
 import PersonaSelector from "@/src/components/setup/PersonaSelector";
 import KnowledgeUpload from "@/src/components/setup/KnowledgeUpload";
-import CharacterAvatar from "@/src/components/practice/CharacterAvatar";
+import CharacterAvatar, { EmotionType } from "@/src/components/practice/CharacterAvatar";
 import { supabase } from "@/src/lib/supabase";
 import type { PersonaData } from "@/app/api/chat/route";
 
@@ -25,6 +25,7 @@ export default function PracticePage({
     params: Promise<{ id: string }>;
 }) {
     const { id } = use(params);
+    const [currentEmotion, setCurrentEmotion] = useState<EmotionType>("neutral");
     const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
     const [isPersonaSelectorOpen, setIsPersonaSelectorOpen] = useState(false);
     const [isKnowledgeModalOpen, setIsKnowledgeModalOpen] = useState(false);
@@ -33,12 +34,15 @@ export default function PracticePage({
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
 
+    // localStorage からスライドURLを読み取る（SlideViewer の onPdfUrlReady で更新）
+    const [slideUrl, setSlideUrl] = useState<string | null>(null);
+
     const handleFeedbackReady = useCallback(
         (slideAudios: { page: number; blob: Blob }[]) => {
-            // TODO: 録音データを AI フィードバック API に送信する
-            console.log("[Logeach] フィードバック依頼:", slideAudios);
+            // TODO: 録音データを AI フィードバック API に送信する（slideUrl も渡す）
+            console.log("[Logeach] フィードバック依頼:", slideAudios, "slideUrl:", slideUrl);
         },
-        []
+        [slideUrl]
     );
 
     const [messages, setMessages] = useState<Message[]>([]);
@@ -116,12 +120,16 @@ export default function PracticePage({
         setStreamingText(chunk);
     }, []);
 
-    // ストリーミング完了
     const handleAssistantDone = useCallback((fullText: string, emotion?: string) => {
         setStreamingText(null);
+        
+        // AIから emotion が届いていればそれを使い、なければ neutral に戻す
+        const nextEmotion = (emotion as EmotionType) || "neutral";
+        setCurrentEmotion(nextEmotion);
+
         setMessages((prev) => [
             ...prev,
-            { role: "assistant" as const, text: fullText, emotion },
+            { role: "assistant" as const, text: fullText, emotion: nextEmotion },
         ]);
     }, []);
 
@@ -146,6 +154,7 @@ export default function PracticePage({
                             sessionId={id}
                             onPageChange={setCurrentPage}
                             onNumPagesReady={setTotalPages}
+                            onPdfUrlReady={setSlideUrl}
                         />
                     </div>
                     {/* 左中: 録音コントローラー */}
@@ -163,6 +172,7 @@ export default function PracticePage({
                         <ChatInterface
                             sessionId={id}
                             personaData={currentPersona ?? undefined}
+                            slideUrl={slideUrl ?? undefined}
                             onUserMessage={handleUserMessage}
                             onAssistantChunk={handleAssistantChunk}
                             onAssistantDone={handleAssistantDone}
@@ -174,7 +184,7 @@ export default function PracticePage({
                 <div className="w-[420px] flex flex-col bg-white">
                     {/* 右カラム: アバター表示 */}
                     <div className="border-b border-border bg-gray-50/30">
-                        <CharacterAvatar />
+                        <CharacterAvatar emotion={currentEmotion} />
                     </div>
                     {/* AIコメント表示エリア（スクロール） */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">

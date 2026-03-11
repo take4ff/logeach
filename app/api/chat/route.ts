@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, type ContentListUnion } from '@google/genai';
 import { saveMessage } from '@/src/lib/messages';
 
 const client = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? '' });
@@ -42,7 +42,7 @@ function buildSystemPrompt(personaData?: PersonaData): string {
 
 export async function POST(req: Request) {
     try {
-        const { sessionId, message, personaData } = await req.json();
+        const { sessionId, message, persona, slideUrl, personaData } = await req.json();
 
         if (!message) {
             return Response.json({ error: 'message は必須です' }, { status: 400 });
@@ -54,10 +54,30 @@ export async function POST(req: Request) {
         }
 
         const systemInstruction = buildSystemPrompt(personaData);
+        const slideInstruction = slideUrl
+            ? 'ユーザーが添付したスライドの内容を踏まえて反論・コメントしてください。'
+            : '';
+
+        let contents: ContentListUnion;
+        if (slideUrl) {
+            // fileData.fileUri は Gemini Files API の URI 専用のため、
+            // 任意の公開URL（Supabase 等）は fetch して base64 に変換して渡す
+            const pdfRes = await fetch(slideUrl);
+            if (!pdfRes.ok) throw new Error(`PDF fetch failed: ${pdfRes.status}`);
+            const pdfBuffer = await pdfRes.arrayBuffer();
+            const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
+            contents = [
+                { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
+                { text: message },
+            ];
+        } else {
+            contents = message;
+        }
+
 
         const result = await client.models.generateContentStream({
             model: 'gemini-2.5-flash',
-            contents: message,
+            contents,
             config: {
                 systemInstruction,
             },
