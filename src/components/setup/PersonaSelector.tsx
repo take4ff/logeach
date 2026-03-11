@@ -62,6 +62,40 @@ export default function PersonaSelector({
         }
     };
 
+    // ペルソナを削除する
+    const handleDelete = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation(); // 行のクリック（選択）を発火させない
+        if (!confirm("本当にこのペルソナを削除しますか？")) return;
+
+        try {
+            // 現在選択中のものを削除したら選択状態をクリア
+            if (selectedId === id) setSelectedId(null);
+
+            // Supabaseから削除
+            const { error: deleteError } = await supabase
+                .from("personas")
+                .delete()
+                .eq("id", id);
+
+            if (deleteError) throw deleteError;
+
+            // ローカルステートから除外
+            setPersonas((prev) => prev.filter((p) => p.id !== id));
+
+            // もし削除したペルソナがこのセッションで現在適用されていたものなら、セッションからも紐付けを解除する
+            if (id === currentPersonaId) {
+                await supabase
+                    .from("sessions")
+                    .update({ persona_id: null })
+                    .eq("id", sessionId);
+                onSelect(); // 親に変更を通知して再フェッチさせる
+            }
+        } catch (err: unknown) {
+            console.error("ペルソナの削除に失敗しました:", err);
+            alert("削除に失敗しました。もう一度お試しください。");
+        }
+    };
+
     if (loading) {
         return <p className="text-sm text-muted-foreground">読み込み中...</p>;
     }
@@ -94,10 +128,26 @@ export default function PersonaSelector({
                                 }`}
                         >
                             <div className="flex items-center justify-between gap-2">
-                                <p className="font-medium text-sm truncate">{p.name}</p>
-                                {isSelected && (
-                                    <span className="text-primary text-xs font-semibold shrink-0">✓ 選択中</span>
-                                )}
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                    <p className="font-medium text-sm truncate">{p.name}</p>
+                                    {isSelected && (
+                                        <span className="text-primary text-xs font-semibold shrink-0">✓ 選択中</span>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={(e) => handleDelete(e, p.id)}
+                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
+                                    title="削除"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M3 6h18"></path>
+                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                                    </svg>
+                                </button>
                             </div>
                             {personalityTrait && (
                                 <p className="text-xs text-muted-foreground mt-1 truncate">
