@@ -1,4 +1,5 @@
 import { GoogleGenAI, type ContentListUnion, type Content } from '@google/genai';
+import OpenAI from 'openai';
 import { saveMessage, fetchMessages } from '@/src/lib/messages';
 
 export interface PersonaData {
@@ -51,7 +52,7 @@ function buildSystemPrompt(personaData?: PersonaData): string {
 
 export async function POST(req: Request) {
     try {
-        const { sessionId, message, persona, slideUrl, personaData, apiKey } = await req.json();
+        const { sessionId, message, persona, slideUrl, personaData, apiKey, modelProvider = 'gemini' } = await req.json();
 
         if (!apiKey) {
             return Response.json({ error: 'APIキーが設定されていません。ホーム画面から設定してください。' }, { status: 400 });
@@ -61,14 +62,84 @@ export async function POST(req: Request) {
             return Response.json({ error: 'message は必須です' }, { status: 400 });
         }
 
-        const client = new GoogleGenAI({ apiKey });
-
         // ユーザーのメッセージを保存
         if (sessionId) {
             await saveMessage(sessionId, 'user', message);
         }
 
         const systemInstruction = buildSystemPrompt(personaData);
+
+        // ---- Qwen (OpenAI互換API) ----
+        if (modelProvider === 'qwen') {
+            const qwenClient = new OpenAI({
+                apiKey,
+                baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+            });
+
+            // 過去の履歴を取得
+            const history: OpenAI.Chat.ChatCompletionMessageParam[] = [];
+            if (sessionId) {
+                const pastMessages = await fetchMessages(sessionId);
+                const recent = pastMessages.slice(-15);
+                for (const msg of recent) {
+                    history.push({ role: msg.role === 'assistant' ? 'assistant' : 'user', content: msg.text });
+                }
+            }
+
+            const qwenMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+                { role: 'system', content: systemInstruction },
+                ...history,
+                { role: 'user', content: message },
+            ];
+
+            const qwenStream = await qwenClient.chat.completions.create({
+                model: 'qwen-plus',
+                messages: qwenMessages,
+                stream: true,
+            });
+
+            const stream = new ReadableStream({
+                async start(controller) {
+                    const encoder = new TextEncoder();
+                    let fullText = '';
+                    try {
+                        for await (const chunk of qwenStream) {
+                            const text = chunk.choices[0]?.delta?.content ?? '';
+                            if (text) {
+                                fullText += text;
+                                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+                            }
+                        }
+
+                        const emotionMatch = fullText.match(/emotion:\s*(.+)/);
+                        const emotion = emotionMatch ? normalizeEmotion(emotionMatch[1]) : 'neutral';
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ emotion })}\n\n`));
+
+                        if (sessionId) {
+                            await saveMessage(sessionId, 'assistant', fullText, emotion);
+                        }
+
+                        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                    } catch (err) {
+                        console.error('Qwen stream error:', err);
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'Stream error' })}\n\n`));
+                    } finally {
+                        controller.close();
+                    }
+                },
+            });
+
+            return new Response(stream, {
+                headers: {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive',
+                },
+            });
+        }
+
+        // ---- Gemini ----
+        const client = new GoogleGenAI({ apiKey });
 
         const slideInstruction = slideUrl
             ? 'ユーザーが添付したスライドの内容を踏まえて反論・コメントしてください。'

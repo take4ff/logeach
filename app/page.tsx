@@ -35,6 +35,8 @@ export default function HomePage() {
   // 設定モーダル（APIキー）用ステート
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState("");
+  const [qwenApiKeyInput, setQwenApiKeyInput] = useState("");
+  const [preferredModel, setPreferredModel] = useState<'gemini' | 'qwen'>('gemini');
 
   // 認証チェック
   useEffect(() => {
@@ -46,9 +48,11 @@ export default function HomePage() {
   // ローカルストレージからAPIキーを読み込む
   useEffect(() => {
     const savedKey = localStorage.getItem("gemini_api_key");
-    if (savedKey) {
-      setApiKeyInput(savedKey);
-    }
+    if (savedKey) setApiKeyInput(savedKey);
+    const savedQwenKey = localStorage.getItem("qwen_api_key");
+    if (savedQwenKey) setQwenApiKeyInput(savedQwenKey);
+    const savedModel = localStorage.getItem("preferred_model") as 'gemini' | 'qwen' | null;
+    if (savedModel) setPreferredModel(savedModel);
   }, []);
 
   // セッション一覧の取得
@@ -268,41 +272,89 @@ export default function HomePage() {
             <form onSubmit={(e) => {
               e.preventDefault();
               localStorage.setItem("gemini_api_key", apiKeyInput);
+              localStorage.setItem("qwen_api_key", qwenApiKeyInput);
+              localStorage.setItem("preferred_model", preferredModel);
               setIsSettingsOpen(false);
               alert("APIキーを保存しました。");
             }}>
-              <div className="mb-6">
-                <label htmlFor="apiKey" className="block text-sm font-medium mb-2">
+              {/* 使用モデル選択 */}
+              <div className="mb-5">
+                <p className="text-sm font-medium mb-2">使用するAIモデル</p>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="model"
+                      value="gemini"
+                      checked={preferredModel === 'gemini'}
+                      onChange={() => setPreferredModel('gemini')}
+                    />
+                    <span className="text-sm">Gemini (Google)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="model"
+                      value="qwen"
+                      checked={preferredModel === 'qwen'}
+                      onChange={() => setPreferredModel('qwen')}
+                    />
+                    <span className="text-sm">Qwen (Alibaba)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Gemini APIキー */}
+              <div className="mb-4">
+                <label htmlFor="apiKey" className="block text-sm font-medium mb-1">
                   Gemini API キー
                 </label>
-                <div className="text-xs text-muted-foreground mb-3">
-                  APIキーはブラウザにのみ保存され、サーバーには送信・蓄積されません。<br />
-                  <a
-                    href="https://aistudio.google.com/app/apikey"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline"
-                  >
+                <div className="text-xs text-muted-foreground mb-2">
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
                     Google AI Studioから取得
                   </a>
                 </div>
                 <input
                   id="apiKey"
                   type="password"
-                  autoFocus
-                  required
                   placeholder="AIzaSy..."
                   value={apiKeyInput}
                   onChange={(e) => setApiKeyInput(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                 />
               </div>
+
+              {/* Qwen APIキー */}
+              <div className="mb-6">
+                <label htmlFor="qwenApiKey" className="block text-sm font-medium mb-1">
+                  Qwen API キー
+                </label>
+                <div className="text-xs text-muted-foreground mb-2">
+                  <a href="https://bailian.console.aliyun.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                    Alibaba Cloudバイリアンから取得
+                  </a>
+                </div>
+                <input
+                  id="qwenApiKey"
+                  type="password"
+                  placeholder="sk-..."
+                  value={qwenApiKeyInput}
+                  onChange={(e) => setQwenApiKeyInput(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                />
+              </div>
+
+              <div className="text-xs text-muted-foreground mb-4">
+                APIキーはブラウザにのみ保存され、サーバーには送信・蓄積されません。
+              </div>
+
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => {
-                    const savedKey = localStorage.getItem("gemini_api_key");
-                    setApiKeyInput(savedKey || "");
+                    setApiKeyInput(localStorage.getItem("gemini_api_key") || "");
+                    setQwenApiKeyInput(localStorage.getItem("qwen_api_key") || "");
+                    setPreferredModel((localStorage.getItem("preferred_model") as 'gemini' | 'qwen') || 'gemini');
                     setIsSettingsOpen(false);
                   }}
                   className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted"
@@ -311,7 +363,7 @@ export default function HomePage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={!apiKeyInput.trim()}
+                  disabled={preferredModel === 'gemini' ? !apiKeyInput.trim() : !qwenApiKeyInput.trim()}
                   className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   保存
