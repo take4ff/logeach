@@ -11,10 +11,21 @@ export interface PersonaData {
 }
 
 /** ペルソナ情報からシステムプロンプトを組み立てる */
+const ALLOWED_EMOTIONS = ['neutral', 'thinking', 'satisfied', 'skeptical', 'angry', 'impressed'] as const;
+type Emotion = typeof ALLOWED_EMOTIONS[number];
+
+function normalizeEmotion(raw: string): Emotion {
+    const lower = raw.toLowerCase().trim();
+    return (ALLOWED_EMOTIONS as readonly string[]).includes(lower)
+        ? (lower as Emotion)
+        : 'neutral';
+}
+
 function buildSystemPrompt(personaData?: PersonaData): string {
     if (!personaData || !personaData.name) {
         return [
-            '返答の最後に必ず、あなたの感情を "emotion: <感情名>" の形式で1行追加してください（例: emotion: 興味深い）。',
+            '返答の最後に必ず、あなたの感情を "emotion: <感情名>" の形式で1行追加してください。',
+            '感情は必ず次の6つのいずれかを使用してください: neutral / thinking / satisfied / skeptical / angry / impressed',
         ].join('\n');
     }
 
@@ -97,7 +108,7 @@ export async function POST(req: Request) {
                     }
 
                     const emotionMatch = fullText.match(/emotion:\s*(.+)/);
-                    const emotion = emotionMatch ? emotionMatch[1].trim() : 'neutral';
+                    const emotion = emotionMatch ? normalizeEmotion(emotionMatch[1]) : 'neutral';
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ emotion })}\n\n`));
 
                     // AIの応答をDBに保存
