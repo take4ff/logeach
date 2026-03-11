@@ -1,5 +1,5 @@
-import { GoogleGenAI, type ContentListUnion } from '@google/genai';
-import { saveMessage } from '@/src/lib/messages';
+import { GoogleGenAI, type ContentListUnion, type Content } from '@google/genai';
+import { saveMessage, fetchMessages } from '@/src/lib/messages';
 
 const client = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? '' });
 
@@ -54,11 +54,25 @@ export async function POST(req: Request) {
         }
 
         const systemInstruction = buildSystemPrompt(personaData);
+
         const slideInstruction = slideUrl
             ? 'ユーザーが添付したスライドの内容を踏まえて反論・コメントしてください。'
             : '';
 
-        let contents: ContentListUnion;
+        // 過去のメッセージ履歴を取得して Gemini のフォーマットに変換
+        let historyContents: Content[] = [];
+        if (sessionId) {
+            const pastMessages = await fetchMessages(sessionId);
+            // トークン節約のため、直近の最大15件のメッセージのみをコンテキストとして保持する
+            const recentMessages = pastMessages.slice(-15);
+            historyContents = recentMessages.map(msg => ({
+                role: msg.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: msg.text }]
+            }));
+        }
+
+        // 今回のメッセージを組み立てる
+        let currentMessageContent: Content;
         if (slideUrl) {
             // fileData.fileUri は Gemini Files API の URI 専用のため、
             // 任意の公開URL（Supabase 等）は fetch して base64 に変換して渡す
@@ -66,13 +80,22 @@ export async function POST(req: Request) {
             if (!pdfRes.ok) throw new Error(`PDF fetch failed: ${pdfRes.status}`);
             const pdfBuffer = await pdfRes.arrayBuffer();
             const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
-            contents = [
-                { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
-                { text: message },
-            ];
+            currentMessageContent = {
+                role: 'user',
+                parts: [
+                    { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
+                    { text: slideInstruction + '\n' + message },
+                ]
+            };
         } else {
-            contents = message;
+            currentMessageContent = {
+                role: 'user',
+                parts: [{ text: message }]
+            };
         }
+
+        // 履歴と今回のメッセージを結合して Gemini に渡す contents を作成
+        const contents: Content[] = [...historyContents, currentMessageContent];
 
 
         const result = await client.models.generateContentStream({
