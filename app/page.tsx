@@ -142,6 +142,23 @@ export default function HomePage() {
     router.push(`/practice/${sessionId}`);
   };
 
+  // セッション削除処理
+  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    if (!confirm("このセッションを削除しますか？削除したデータは元に戻せません。")) return;
+    try {
+      const { error } = await supabase
+        .from("sessions")
+        .delete()
+        .eq("id", sessionId);
+      if (error) throw error;
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    } catch (err: any) {
+      console.error("セッションの削除に失敗しました:", err);
+      alert(`削除に失敗しました。\n詳細: ${err.message || "不明なエラー"}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background relative">
       <main className="max-w-5xl mx-auto px-6 py-16">
@@ -183,12 +200,27 @@ export default function HomePage() {
             </div>
           ) : sessions.length > 0 ? (
             sessions.map((session) => (
-              <button
+              <div
                 key={session.id}
                 onClick={() => handleOpenSession(session.id)}
-                className="flex flex-col items-start text-left p-6 min-h-[180px] rounded-xl border border-border bg-card hover:border-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                className="relative flex flex-col items-start text-left p-6 min-h-[180px] rounded-xl border border-border bg-card hover:border-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md group"
               >
-                <div className="flex items-center gap-2 mb-3 w-full">
+                {/* 削除ボタン */}
+                <button
+                  onClick={(e) => handleDeleteSession(e, session.id)}
+                  className="absolute top-3 right-3 p-1.5 rounded-md text-muted-foreground hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all z-10"
+                  title="削除"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6" />
+                    <path d="M14 11v6" />
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+                </button>
+
+                <div className="flex items-center gap-2 mb-3 w-full pr-6">
                   <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium shrink-0">
                     練習セッション
                   </span>
@@ -197,7 +229,7 @@ export default function HomePage() {
                   </span>
                 </div>
 
-                {/* タイトル (DBのtitleカラムを利用) */}
+                {/* タイトル */}
                 <h3 className="text-lg font-semibold mb-2 line-clamp-1 w-full" title={session.title || "無題のセッション"}>
                   {session.title || "無題のセッション"}
                 </h3>
@@ -211,7 +243,7 @@ export default function HomePage() {
                 <div className="mt-auto pt-4 border-t border-border w-full flex justify-end items-center text-sm font-medium text-primary">
                   <span>詳細を見る &rarr;</span>
                 </div>
-              </button>
+              </div>
             ))
           ) : (
             <div className="col-span-1 md:col-span-2 flex items-center justify-center p-8 border border-dashed rounded-xl bg-card/50 text-muted-foreground">
