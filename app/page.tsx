@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/src/components/auth/AuthProvider";
 import { supabase } from "@/src/lib/supabase";
+import Logo from "@/src/components/common/Logo";
 
 // データベースからの取得結果の型定義
 type SessionWithPersona = {
@@ -146,7 +147,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-background relative">
       <main className="max-w-5xl mx-auto px-6 py-16">
         <div className="flex justify-between items-center mb-12">
-          <h1 className="text-4xl font-bold">Logeach</h1>
+          <Logo size="large" />
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground hidden sm:inline">
               {user.displayName ?? user.email}

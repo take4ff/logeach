@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/src/lib/supabase";
+import Logo from "@/src/components/common/Logo";
 
 type Mode = "login" | "signup";
 
@@ -52,8 +53,8 @@ export default function LoginPage() {
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-background">
-            <div className="w-full max-w-md p-8 rounded-2xl border border-border bg-card shadow-sm">
-                <h1 className="text-3xl font-bold text-center mb-8">Logeach</h1>
+            <div className="w-full max-w-md p-8 rounded-2xl border border-border bg-card shadow-sm flex flex-col items-center">
+                <Logo size="medium" className="mb-8" withLink={false} />
 
                 {/* タブ切り替え */}
                 <div className="flex rounded-lg border border-border mb-6 overflow-hidden">
