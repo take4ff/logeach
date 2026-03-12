@@ -57,7 +57,7 @@ export default function LoginPage() {
                 <Logo size="medium" className="mb-8" withLink={false} />
 
                 {/* タブ切り替え */}
-                <div className="flex rounded-lg border border-border mb-6 overflow-hidden">
+                <div className="flex w-full rounded-lg border border-border mb-6 overflow-hidden">
                     <button
                         type="button"
                         onClick={() => { setMode("login"); setError(null); }}
@@ -82,7 +82,7 @@ export default function LoginPage() {
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
                     <div className="flex flex-col gap-1">
                         <label htmlFor="name" className="text-sm font-medium">
                             名前
