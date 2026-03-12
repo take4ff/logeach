@@ -223,7 +223,7 @@ export default function KnowledgeUpload({
                 <button
                     type="submit"
                     disabled={isUploading || files.length === 0}
-                    className="w-full bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                    className="w-full bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
                 >
                     {isUploading ? "アップロード中..." : "アップロードして保存"}
                 </button>
