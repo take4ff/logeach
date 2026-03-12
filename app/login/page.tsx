@@ -62,8 +62,8 @@ export default function LoginPage() {
                         onClick={() => { setMode("login"); setError(null); }}
                         className={`flex-1 py-2 text-sm font-medium transition-colors ${
                             mode === "login"
-                                ? "bg-primary text-primary-foreground"
-                                : "hover:bg-muted"
+                                ? "bg-primary text-white"
+                                : "hover:bg-muted text-black"
                         }`}
                     >
                         ログイン
@@ -73,8 +73,8 @@ export default function LoginPage() {
                         onClick={() => { setMode("signup"); setError(null); }}
                         className={`flex-1 py-2 text-sm font-medium transition-colors ${
                             mode === "signup"
-                                ? "bg-primary text-primary-foreground"
-                                : "hover:bg-muted"
+                                ? "bg-primary text-white"
+                                : "hover:bg-muted text-black"
                         }`}
                     >
                         アカウント作成
@@ -120,7 +120,7 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="mt-2 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                        className="mt-2 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
                     >
                         {loading ? "処理中..." : mode === "login" ? "ログイン" : "アカウントを作成"}
                     </button>
