@@ -120,31 +120,25 @@ export default function ChatInterface({
         );
     }
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            handleSubmit(e as unknown as React.FormEvent);
-        }
-    };
 
     return (
-        <form onSubmit={handleSubmit} className="flex gap-2">
+        <div className="flex gap-2">
             <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
                 placeholder="反論を入力..."
                 disabled={isLoading}
                 className="flex-1 border border-border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
             />
             <button
-                type="submit"
+                type="button"
+                onClick={handleSubmit as unknown as React.MouseEventHandler}
                 disabled={isLoading || !input.trim()}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-full hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
                 {isLoading ? "送信中" : "送信"}
             </button>
-        </form>
+        </div>
     );
 }
