@@ -6,7 +6,7 @@ interface SlideRecorderProps {
     totalPages: number;
     currentPage: number;
     sessionId: string;
-    onFeedbackReady: (slideAudios: { page: number; blob: Blob }[]) => void;
+    onFeedbackReady: (slideAudios: { page: number; blob: Blob; imageBase64?: string }[]) => void;
 }
 
 type RecordingState = "idle" | "recording" | "done";
@@ -25,7 +25,7 @@ export default function SlideRecorder({
 }: SlideRecorderProps) {
     const [recordingState, setRecordingState] = useState<RecordingState>("idle");
     const [pageElapsed, setPageElapsed] = useState(0);
-    const [slideAudios, setSlideAudios] = useState<{ page: number; blob: Blob }[]>([]);
+    const [slideAudios, setSlideAudios] = useState<{ page: number; blob: Blob; imageBase64?: string }[]>([]);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -35,6 +35,26 @@ export default function SlideRecorder({
     // 現在「録音中」のページ番号を追跡する ref
     // （currentPage の useEffect と競合しないよう手動で管理する）
     const recordingPageRef = useRef(currentPage);
+
+    // Qwen 解析用: 各ページの Canvas 画像を保持
+    const capturedImagesRef = useRef<Record<number, string>>({});
+
+    // 録音中、定期的に Canvas から画像をキャプチャして保持
+    // react-pdf のレンダリング完了タイミングのズレを吸収するためポーリング
+    useEffect(() => {
+        if (recordingState !== "recording") return;
+        const interval = setInterval(() => {
+            try {
+                const canvas = document.querySelector('.react-pdf__Page__canvas') as HTMLCanvasElement;
+                if (canvas) {
+                    capturedImagesRef.current[currentPage] = canvas.toDataURL('image/jpeg', 0.8);
+                }
+            } catch (err) {
+                console.warn("PDF canvas capture failed:", err);
+            }
+        }, 500);
+        return () => clearInterval(interval);
+    }, [recordingState, currentPage]);
 
     // タイマーをリセット・開始
     const startTimer = useCallback(() => {
@@ -55,7 +75,7 @@ export default function SlideRecorder({
     // 現在の MediaRecorder を停止し、blob を slideAudios に追加する
     // 追加後に onStarted() コールバックを呼ぶことで新しい録音を連鎖できる
     const stopCurrentRecording = useCallback(
-        (page: number, onStopped?: (audios: { page: number; blob: Blob }[]) => void) => {
+        (page: number, onStopped?: (audios: { page: number; blob: Blob; imageBase64?: string }[]) => void) => {
             const mr = mediaRecorderRef.current;
             if (!mr || mr.state === "inactive") {
                 onStopped?.(slideAudios);
@@ -68,8 +88,9 @@ export default function SlideRecorder({
             mr.onstop = () => {
                 const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
                 chunksRef.current = [];
+                const imageBase64 = capturedImagesRef.current[page];
                 setSlideAudios((prev) => {
-                    const updated = [...prev, { page, blob }];
+                    const updated = [...prev, { page, blob, imageBase64 }];
                     onStopped?.(updated);
                     return updated;
                 });
@@ -121,8 +142,9 @@ export default function SlideRecorder({
         mr.onstop = () => {
             const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
             chunksRef.current = [];
+            const imageBase64 = capturedImagesRef.current[page];
             setSlideAudios((prev) => {
-                const updated = [...prev, { page, blob }];
+                const updated = [...prev, { page, blob, imageBase64 }];
                 return updated;
             });
             // ストリームを解放

@@ -2,6 +2,7 @@
 
 import { use, useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 import dynamic from "next/dynamic";
 const SlideViewer = dynamic(
     () => import("@/src/components/practice/SlideViewer"),
@@ -38,11 +39,51 @@ export default function PracticePage({
     const [slideUrl, setSlideUrl] = useState<string | null>(null);
 
     const handleFeedbackReady = useCallback(
-        (slideAudios: { page: number; blob: Blob }[]) => {
-            // TODO: 録音データを AI フィードバック API に送信する（slideUrl も渡す）
-            console.log("[Logeach] フィードバック依頼:", slideAudios, "slideUrl:", slideUrl);
+        async (slideAudios: { page: number; blob: Blob; imageBase64?: string }[]) => {
+            setIsFeedbackModalOpen(true);
+            setIsFeedbackLoading(true);
+            setFeedbackResult(null);
+            setFeedbackError(null);
+
+            try {
+                const formData = new FormData();
+                formData.append('sessionId', id);
+                if (slideUrl) formData.append('slideUrl', slideUrl);
+                for (const { page, blob, imageBase64 } of slideAudios) {
+                    formData.append(`audio_page_${page}`, blob);
+                    if (imageBase64) {
+                        formData.append(`image_page_${page}`, imageBase64);
+                    }
+                }
+
+                // localStorage から設定を読み込んで付与
+                const preferredModel = localStorage.getItem('preferred_model') || 'gemini';
+                const geminiApiKey = localStorage.getItem('gemini_api_key') || '';
+                const qwenApiKey = localStorage.getItem('qwen_api_key') || '';
+                formData.append('modelProvider', preferredModel);
+                formData.append('geminiApiKey', geminiApiKey);
+                formData.append('qwenApiKey', qwenApiKey);
+
+                const res = await fetch('/api/analyze-presentation', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error ?? `HTTP error: ${res.status}`);
+                }
+
+                const data = await res.json();
+                setFeedbackResult(data.feedback ?? 'フィードバックを取得できませんでした。');
+            } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : '不明なエラー';
+                setFeedbackError(`フィードバックの取得に失敗しました: ${msg}`);
+            } finally {
+                setIsFeedbackLoading(false);
+            }
         },
-        [slideUrl]
+        [id, slideUrl]
     );
 
     const [messages, setMessages] = useState<Message[]>([]);
@@ -51,6 +92,12 @@ export default function PracticePage({
     const [currentPersona, setCurrentPersona] = useState<PersonaData | null>(null);
     const [sessionPersonaId, setSessionPersonaId] = useState<string | null>(null);
     const bottomRef = useRef<HTMLDivElement | null>(null);
+
+    // フィードバックモーダル
+    const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+    const [feedbackResult, setFeedbackResult] = useState<string | null>(null);
+    const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
+    const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
     /** sessions.persona_id → personas テーブルからペルソナ情報を取得 */
     const loadPersona = useCallback(async () => {
@@ -122,7 +169,7 @@ export default function PracticePage({
 
     const handleAssistantDone = useCallback((fullText: string, emotion?: string) => {
         setStreamingText(null);
-        
+
         // AIから emotion が届いていればそれを使い、なければ neutral に戻す
         const nextEmotion = (emotion as EmotionType) || "neutral";
         setCurrentEmotion(nextEmotion);
@@ -354,6 +401,61 @@ export default function PracticePage({
                                 閉じる
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* フィードバックモーダル */}
+            {isFeedbackModalOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 sm:p-6 overflow-y-auto"
+                    onClick={() => { if (!isFeedbackLoading) setIsFeedbackModalOpen(false); }}
+                >
+                    <div
+                        className="bg-background rounded-xl shadow-lg w-full max-w-2xl p-6 my-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 className="text-xl font-bold mb-4">AIフィードバック</h2>
+
+                        {isFeedbackLoading && (
+                            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+                                <span className="animate-spin text-3xl">⏳</span>
+                                <p className="text-sm">音声を文字起こして分析中です。しばらくお待ちください…</p>
+                            </div>
+                        )}
+
+                        {feedbackError && (
+                            <p className="text-red-500 text-sm whitespace-pre-wrap">{feedbackError}</p>
+                        )}
+
+                        {feedbackResult && (
+                            <div className="text-sm text-foreground leading-relaxed max-h-[60vh] overflow-y-auto border border-border rounded-lg p-4 bg-muted/30 prose prose-sm max-w-none">
+                                <ReactMarkdown
+                                    components={{
+                                        h3: ({ children }) => <h3 className="text-base font-bold mt-4 mb-1">{children}</h3>,
+                                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                                        hr: () => <hr className="my-3 border-border" />,
+                                        p: ({ children }) => <p className="mb-2">{children}</p>,
+                                        ul: ({ children }) => <ul className="list-disc pl-5 space-y-1">{children}</ul>,
+                                        li: ({ children }) => <li>{children}</li>,
+                                    }}
+                                >
+                                    {feedbackResult}
+                                </ReactMarkdown>
+                            </div>
+                        )}
+
+                        {!isFeedbackLoading && (
+                            <div className="mt-6 flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsFeedbackModalOpen(false)}
+                                    className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted"
+                                >
+                                    閉じる
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
