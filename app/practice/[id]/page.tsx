@@ -17,6 +17,7 @@ import PersonaSelector from "@/src/components/setup/PersonaSelector";
 import KnowledgeUpload from "@/src/components/setup/KnowledgeUpload";
 import CharacterAvatar, { EmotionType } from "@/src/components/practice/CharacterAvatar";
 import { supabase } from "@/src/lib/supabase";
+import Logo from "@/src/components/common/Logo";
 import type { PersonaData } from "@/app/api/chat/route";
 
 export default function PracticePage({
@@ -140,7 +141,7 @@ export default function PracticePage({
                 <Link href="/" className="text-sm text-foreground-muted hover:text-foreground">
                     ← 戻る
                 </Link>
-                <span className="font-semibold">Logeach</span>
+                <Logo size="small" withLink={false} />
                 <div className="w-16" />
             </header>
 
