@@ -66,7 +66,11 @@ export default function ChatInterface({
                     signal: controller.signal,
                 });
 
-                if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+                if (!res.ok) {
+                    const errBody = await res.json().catch(() => ({}));
+                    onAssistantDone?.(errBody.error || `HTTP error: ${res.status}`);
+                    return;
+                }
 
                 const reader = res.body?.getReader();
                 const decoder = new TextDecoder();
@@ -100,7 +104,7 @@ export default function ChatInterface({
             } catch (err: unknown) {
                 if (err instanceof Error && err.name !== "AbortError") {
                     console.error("Chat API エラー:", err);
-                    onAssistantDone?.("エラーが発生しました。もう一度お試しください。");
+                    onAssistantDone?.(err.message || "エラーが発生しました。もう一度お試しください。");
                 }
             } finally {
                 setIsLoading(false);

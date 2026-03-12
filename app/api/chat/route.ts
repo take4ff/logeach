@@ -231,8 +231,19 @@ export async function POST(req: Request) {
                 'Connection': 'keep-alive',
             },
         });
-    } catch (error) {
-        console.error('Gemini API エラー:', error);
-        return Response.json({ error: 'Internal Server Error' }, { status: 500 });
+    } catch (error: any) {
+        console.error('Gemini/Qwen API エラー:', error);
+        
+        let status = 500;
+        let message = 'Internal Server Error';
+
+        if (error?.status === 429 || error?.code === 429) {
+            status = 429;
+            message = 'APIの利用制限（上限または一時的なリクエスト過多）に達しました。しばらく待ってからもう一度お試しください。無料枠の場合はAPIキーのクォータを確認してください。';
+        } else if (error?.message) {
+            message = error.message;
+        }
+
+        return Response.json({ error: message }, { status });
     }
 }
