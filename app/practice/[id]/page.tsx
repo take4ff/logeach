@@ -17,6 +17,7 @@ import PersonaConfig from "@/src/components/setup/PersonaConfig";
 import PersonaSelector from "@/src/components/setup/PersonaSelector";
 import KnowledgeUpload from "@/src/components/setup/KnowledgeUpload";
 import CharacterAvatar, { EmotionType } from "@/src/components/practice/CharacterAvatar";
+import TutorialOverlay from "@/src/components/practice/TutorialOverlay";
 import { supabase } from "@/src/lib/supabase";
 import Logo from "@/src/components/common/Logo";
 import type { PersonaData } from "@/app/api/chat/route";
@@ -100,6 +101,9 @@ export default function PracticePage({
     const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
     const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
+    // チュートリアル（新規セッション＝メッセージ履歴が空の場合のみ表示）
+    const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+
     /** sessions.persona_id → personas テーブルからペルソナ情報を取得 */
     const loadPersona = useCallback(async () => {
         const { data: sessionData } = await supabase
@@ -136,7 +140,15 @@ export default function PracticePage({
                 const res = await fetch(`/api/chat_logs/${id}`);
                 if (res.ok) {
                     const { messages: history } = await res.json();
-                    setMessages(history ?? []);
+                    const loaded: Message[] = history ?? [];
+                    setMessages(loaded);
+
+                    // 履歴が空 = 新規セッション → チュートリアルを表示（1度のみ）
+                    const tutorialKey = `tutorial_shown_${id}`;
+                    if (loaded.length === 0 && !localStorage.getItem(tutorialKey)) {
+                        setIsTutorialOpen(true);
+                        localStorage.setItem(tutorialKey, "1");
+                    }
                 }
             } catch (err) {
                 console.error("履歴の取得に失敗しました:", err);
@@ -183,6 +195,10 @@ export default function PracticePage({
 
     return (
         <div className="h-screen flex flex-col">
+            {/* チュートリアル（セッション初回のみ） */}
+            {isTutorialOpen && (
+                <TutorialOverlay onClose={() => setIsTutorialOpen(false)} />
+            )}
             {/* ヘッダー */}
             <header className="bg-white border-b border-border px-4 py-2 flex items-center justify-between">
                 <Link href="/" className="text-sm text-foreground-muted hover:text-foreground">
