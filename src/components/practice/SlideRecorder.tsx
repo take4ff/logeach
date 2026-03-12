@@ -134,6 +134,30 @@ export default function SlideRecorder({
         mr.stop();
     }, [stopTimer]);
 
+    // 「やり直し」クリック: 現在ページの録音データを破棄して再録音
+    const handleRetry = useCallback(() => {
+        const stream = mediaStreamRef.current;
+        if (!stream) return;
+
+        // 現在の MediaRecorder を破棄（データは保存しない）
+        const mr = mediaRecorderRef.current;
+        if (mr && mr.state !== "inactive") {
+            mr.ondataavailable = null;
+            mr.onstop = null;
+            mr.stop();
+        }
+        chunksRef.current = [];
+        mediaRecorderRef.current = null;
+
+        // 現在ページのデータを slideAudios から除外
+        const page = recordingPageRef.current;
+        setSlideAudios((prev) => prev.filter((a) => a.page !== page));
+
+        // タイマーをリセットして新しい録音を開始
+        startTimer();
+        startNewRecording(stream);
+    }, [startNewRecording, startTimer]);
+
     // 「AIにフィードバックを依頼する」クリック
     const handleFeedback = useCallback(() => {
         onFeedbackReady(slideAudios);
@@ -200,15 +224,23 @@ export default function SlideRecorder({
                             {totalPages > 0 ? `/${totalPages}` : ""}
                         </span>
                     </div>
-                    {/* タイマー + 録音終了ボタン */}
+                    {/* タイマー + ボタン群 */}
                     <div className="flex items-center justify-between gap-3">
                         <span className="text-gray-200 tabular-nums">{formatTime(pageElapsed)}</span>
-                        <button
-                            onClick={handleStop}
-                            className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-md text-xs font-semibold transition-colors duration-150 border border-gray-600"
-                        >
-                            録音終了
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleRetry}
+                                className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 rounded-md text-xs font-semibold transition-colors duration-150 border border-yellow-500"
+                            >
+                                やり直し
+                            </button>
+                            <button
+                                onClick={handleStop}
+                                className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-md text-xs font-semibold transition-colors duration-150 border border-gray-600"
+                            >
+                                録音終了
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
