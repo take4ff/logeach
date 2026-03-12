@@ -19,6 +19,7 @@ import CharacterAvatar, { EmotionType } from "@/src/components/practice/Characte
 import { supabase } from "@/src/lib/supabase";
 import Logo from "@/src/components/common/Logo";
 import type { PersonaData } from "@/app/api/chat/route";
+import FeedbackModal, { FeedbackData } from "@/src/components/practice/FeedbackModal";
 
 export default function PracticePage({
     params,
@@ -38,12 +39,59 @@ export default function PracticePage({
     // localStorage からスライドURLを読み取る（SlideViewer の onPdfUrlReady で更新）
     const [slideUrl, setSlideUrl] = useState<string | null>(null);
 
+    const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+    const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
+    const [feedbackData, setFeedbackData] = useState<FeedbackData | null>(null);
+
     const handleFeedbackReady = useCallback(
-        (slideAudios: { page: number; blob: Blob }[]) => {
-            // TODO: 録音データを AI フィードバック API に送信する（slideUrl も渡す）
+        async (slideAudios: { page: number; blob: Blob }[]) => {
             console.log("[Logeach] フィードバック依頼:", slideAudios, "slideUrl:", slideUrl);
+            setIsFeedbackModalOpen(true);
+            setIsFeedbackLoading(true);
+
+            try {
+                const apiKey = localStorage.getItem("gemini_api_key");
+                
+                // Blob を Base64 に変換
+                const slideAudiosWithBase64 = await Promise.all(
+                    slideAudios.map(async (sa) => {
+                        const reader = new FileReader();
+                        return new Promise<{ page: number; base64: string }>((resolve) => {
+                            reader.onloadend = () => {
+                                const base64 = (reader.result as string).split(",")[1];
+                                resolve({ page: sa.page, base64 });
+                            };
+                            reader.readAsDataURL(sa.blob);
+                        });
+                    })
+                );
+
+                const res = await fetch("/api/feedback", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        sessionId: id,
+                        slideAudios: slideAudiosWithBase64,
+                        slideUrl,
+                        apiKey,
+                    }),
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    setFeedbackData(data);
+                } else {
+                    const error = await res.json();
+                    alert(error.error || "フィードバックの取得に失敗しました");
+                }
+            } catch (err) {
+                console.error("Feedback fetch error:", err);
+                alert("エラーが発生しました");
+            } finally {
+                setIsFeedbackLoading(false);
+            }
         },
-        [slideUrl]
+        [slideUrl, id]
     );
 
     const [messages, setMessages] = useState<Message[]>([]);
@@ -135,7 +183,7 @@ export default function PracticePage({
     }, []);
 
     return (
-        <div className="h-screen flex flex-col">
+        <div className="h-screen flex flex-col overflow-hidden">
             {/* ヘッダー */}
             <header className="bg-white border-b border-border px-4 py-2 flex items-center justify-between">
                 <Link href="/" className="text-sm text-foreground-muted hover:text-foreground">
@@ -146,9 +194,9 @@ export default function PracticePage({
             </header>
 
             {/* メインコンテンツ */}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
                 {/* 左カラム */}
-                <div className="flex-1 flex flex-col border-r border-border">
+                <div className="flex-1 flex flex-col lg:border-r border-border min-h-0 overflow-y-auto">
                     {/* 左上: スライド */}
                     <div className="flex-1 border-b border-border">
                         <SlideViewer
@@ -358,6 +406,13 @@ export default function PracticePage({
                     </div>
                 </div>
             )}
+            {/* フィードバックモーダル */}
+            <FeedbackModal
+                isOpen={isFeedbackModalOpen}
+                onClose={() => setIsFeedbackModalOpen(false)}
+                isLoading={isFeedbackLoading}
+                data={feedbackData}
+            />
         </div>
     );
 }
