@@ -181,7 +181,7 @@ export default function PracticePage({
                 </div>
 
                 {/* 右カラム: AIコメント + 設定 */}
-                <div className="w-[420px] flex flex-col bg-white">
+                <div className="w-[260px] sm:w-[300px] md:w-[360px] lg:w-[420px] flex flex-col bg-white">
                     {/* 右カラム: アバター表示 */}
                     <div className="border-b border-border bg-gray-50/30">
                         <CharacterAvatar emotion={currentEmotion} />

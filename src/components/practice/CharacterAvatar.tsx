@@ -44,7 +44,7 @@ export default function CharacterAvatar({ emotion = 'neutral' }: CharacterAvatar
 
   return (
     <div className={`w-full flex justify-center p-4 transition-colors duration-300 ${config.bg}`}>
-      <div className={`relative w-full h-48 md:h-60 transition-all duration-300 ${config.animation}`}>
+      <div className={`relative w-full h-20 sm:h-28 md:h-36 lg:h-44 xl:h-52 max-h-[22vh] transition-all duration-300 ${config.animation}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={avatarUrl}
