@@ -120,6 +120,22 @@ export default function SlideViewer({
         if (next !== currentPage) onPageChange?.(next);
     };
 
+    // ← / → キーによるページ切り替え
+    useEffect(() => {
+        if (!pdfUrl) return; // PDF未表示時は無効
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // テキスト入力中はスキップ
+            const tag = (e.target as HTMLElement).tagName;
+            if (tag === "INPUT" || tag === "TEXTAREA") return;
+            if (e.key === "ArrowLeft") prevPage();
+            if (e.key === "ArrowRight") nextPage();
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    // prevPage/nextPage は currentPage/numPages に依存するため deps に含める
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pdfUrl, currentPage, numPages]);
+
     // ---- 未アップロード時の UI ----
     if (!pdfUrl) {
         return (
