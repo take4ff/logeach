@@ -2,7 +2,6 @@
 
 import { use, useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
-import ReactMarkdown from "react-markdown";
 import dynamic from "next/dynamic";
 const SlideViewer = dynamic(
     () => import("@/src/components/practice/SlideViewer"),
@@ -18,6 +17,7 @@ import PersonaSelector from "@/src/components/setup/PersonaSelector";
 import KnowledgeUpload from "@/src/components/setup/KnowledgeUpload";
 import CharacterAvatar, { EmotionType } from "@/src/components/practice/CharacterAvatar";
 import TutorialOverlay from "@/src/components/practice/TutorialOverlay";
+import FeedbackModal from "@/src/components/practice/FeedbackModal";
 import { supabase } from "@/src/lib/supabase";
 import Logo from "@/src/components/common/Logo";
 import type { PersonaData } from "@/app/api/chat/route";
@@ -423,59 +423,13 @@ export default function PracticePage({
             )}
 
             {/* フィードバックモーダル */}
-            {isFeedbackModalOpen && (
-                <div
-                    className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 sm:p-6 overflow-y-auto"
-                    onClick={() => { if (!isFeedbackLoading) setIsFeedbackModalOpen(false); }}
-                >
-                    <div
-                        className="bg-background rounded-xl shadow-lg w-full max-w-2xl p-6 my-auto"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <h2 className="text-xl font-bold mb-4">AIフィードバック</h2>
-
-                        {isFeedbackLoading && (
-                            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
-                                <span className="animate-spin text-3xl">⏳</span>
-                                <p className="text-sm">音声を文字起こして分析中です。しばらくお待ちください…</p>
-                            </div>
-                        )}
-
-                        {feedbackError && (
-                            <p className="text-red-500 text-sm whitespace-pre-wrap">{feedbackError}</p>
-                        )}
-
-                        {feedbackResult && (
-                            <div className="text-sm text-foreground leading-relaxed max-h-[60vh] overflow-y-auto border border-border rounded-lg p-4 bg-muted/30 prose prose-sm max-w-none">
-                                <ReactMarkdown
-                                    components={{
-                                        h3: ({ children }) => <h3 className="text-base font-bold mt-4 mb-1">{children}</h3>,
-                                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                                        hr: () => <hr className="my-3 border-border" />,
-                                        p: ({ children }) => <p className="mb-2">{children}</p>,
-                                        ul: ({ children }) => <ul className="list-disc pl-5 space-y-1">{children}</ul>,
-                                        li: ({ children }) => <li>{children}</li>,
-                                    }}
-                                >
-                                    {feedbackResult}
-                                </ReactMarkdown>
-                            </div>
-                        )}
-
-                        {!isFeedbackLoading && (
-                            <div className="mt-6 flex justify-end">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsFeedbackModalOpen(false)}
-                                    className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted"
-                                >
-                                    閉じる
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+            <FeedbackModal
+                isOpen={isFeedbackModalOpen}
+                onClose={() => setIsFeedbackModalOpen(false)}
+                isLoading={isFeedbackLoading}
+                feedback={feedbackResult}
+                error={feedbackError}
+            />
         </div>
     );
 }
