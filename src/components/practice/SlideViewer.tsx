@@ -36,7 +36,9 @@ export default function SlideViewer({
     const [isDragging, setIsDragging] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
+    const [pageRenderHeight, setPageRenderHeight] = useState<number>(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const pdfViewportRef = useRef<HTMLDivElement>(null);
 
     // マウント時に localStorage から復元
     useEffect(() => {
@@ -136,6 +138,28 @@ export default function SlideViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pdfUrl, currentPage, numPages]);
 
+    // PDF表示領域の高さに合わせてページ描画サイズを更新
+    useEffect(() => {
+        const el = pdfViewportRef.current;
+        if (!el) return;
+
+        const updateSize = () => {
+            const h = Math.max(120, Math.floor(el.clientHeight - 16));
+            setPageRenderHeight(h);
+        };
+
+        updateSize();
+
+        if (typeof ResizeObserver === "undefined") {
+            window.addEventListener("resize", updateSize);
+            return () => window.removeEventListener("resize", updateSize);
+        }
+
+        const observer = new ResizeObserver(updateSize);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [pdfUrl]);
+
     // ---- 未アップロード時の UI ----
     if (!pdfUrl) {
         return (
@@ -194,7 +218,7 @@ export default function SlideViewer({
     return (
         <div className="h-full flex flex-col bg-gray-800">
             {/* PDF 表示エリア */}
-            <div className="flex-1 overflow-auto flex items-center justify-center p-2">
+            <div ref={pdfViewportRef} className="flex-1 overflow-auto flex items-center justify-center p-2">
                 <Document
                     file={pdfUrl}
                     onLoadSuccess={({ numPages }) => {
@@ -219,7 +243,7 @@ export default function SlideViewer({
                         renderTextLayer={true}
                         renderAnnotationLayer={true}
                         className="shadow-lg"
-                        width={Math.min(typeof window !== "undefined" ? window.innerWidth * 0.45 : 600, 700)}
+                        height={pageRenderHeight || undefined}
                     />
                 </Document>
             </div>
