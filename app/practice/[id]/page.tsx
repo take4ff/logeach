@@ -204,7 +204,7 @@ export default function PracticePage({
     }, []);
 
     return (
-        <div className="min-h-screen flex flex-col bg-background">
+        <div className="h-[100dvh] flex flex-col bg-background">
             {/* チュートリアル（セッション初回のみ） */}
             {isTutorialOpen && (
                 <TutorialOverlay onClose={() => setIsTutorialOpen(false)} />
@@ -232,11 +232,11 @@ export default function PracticePage({
             </header>
 
             {/* メインコンテンツ */}
-            <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
                 {/* 左カラム */}
-                <div className="flex-1 flex flex-col lg:border-r border-border">
+                <div className="flex-1 min-h-0 flex flex-col lg:border-r border-border">
                     {/* 左上: スライド */}
-                    <div className="h-[42vh] sm:h-[50vh] lg:h-auto lg:flex-1 border-b border-border">
+                    <div className="h-[40dvh] sm:h-[48dvh] lg:h-auto lg:flex-1 min-h-0 border-b border-border">
                         <SlideViewer
                             sessionId={id}
                             onPageChange={setCurrentPage}
@@ -268,14 +268,14 @@ export default function PracticePage({
                 </div>
 
                 {/* 右カラム: AIコメント + 設定 */}
-                <div className="w-full lg:w-[420px] flex flex-col bg-surface border-t lg:border-t-0 border-border lg:shadow-[-2px_0_8px_rgba(0,0,0,0.04)]">
+                <div className="w-full lg:w-[420px] min-h-0 flex flex-col bg-surface border-t lg:border-t-0 border-border lg:shadow-[-2px_0_8px_rgba(0,0,0,0.04)]">
                     {/* アバター表示 */}
                     <div className="border-b border-border bg-surface-hover">
                         <CharacterAvatar emotion={currentEmotion} sessionId={id} />
                     </div>
 
                     {/* チャット表示エリア */}
-                    <div className="h-[40vh] lg:h-auto lg:flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 custom-scrollbar">
+                    <div className="h-[38dvh] sm:h-[40dvh] lg:h-auto lg:flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3 custom-scrollbar">
                         {historyLoading ? (
                             <div className="flex items-center justify-center py-8 gap-2">
                                 <span className="typing-dot w-2 h-2 rounded-full bg-foreground-muted inline-block" />
