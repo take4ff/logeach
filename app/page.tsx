@@ -287,7 +287,7 @@ export default function HomePage() {
                 <button
                   type="submit"
                   disabled={isCreating || !newSessionTitle.trim()}
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
                 >
                   {isCreating ? "作成中..." : "作成して開始"}
                 </button>
@@ -397,7 +397,7 @@ export default function HomePage() {
                 <button
                   type="submit"
                   disabled={preferredModel === 'gemini' ? !apiKeyInput.trim() : !qwenApiKeyInput.trim()}
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
                 >
                   保存
                 </button>
