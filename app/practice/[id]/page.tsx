@@ -3,6 +3,7 @@
 import { use, useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import ReactMarkdown from "react-markdown";
 const SlideViewer = dynamic(
     () => import("@/src/components/practice/SlideViewer"),
     { ssr: false }
@@ -277,12 +278,14 @@ export default function PracticePage({
                                             return (
                                                 <div className={`max-w-[85%] flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
                                                     <div
-                                                        className={`w-full text-sm rounded-2xl px-4 py-2 whitespace-pre-wrap ${!isExpanded && isLong ? "max-h-32 overflow-hidden" : ""} ${msg.role === "user"
+                                                        className={`max-w-[85%] w-full text-sm rounded-2xl px-4 py-2 whitespace-pre-wrap ${!isExpanded && isLong ? "max-h-32 overflow-hidden" : ""} ${msg.role === "user"
                                                             ? "bg-blue-600 text-white rounded-br-sm"
                                                             : "bg-gray-100 text-gray-800 rounded-bl-sm"
                                                             }`}
                                                     >
-                                                        {msg.text}
+                                                        <div className="markdown-content">
+                                                            <ReactMarkdown>{msg.text}</ReactMarkdown>
+                                                        </div>
                                                     </div>
 
                                                     {isLong && (
