@@ -174,7 +174,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       {/* ヘッダー */}
       <header className="bg-surface border-b border-border sticky top-0 z-20 shadow-sm">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <Logo size="small" />
           <div className="flex items-center gap-1">
             <span className="text-sm text-foreground-muted hidden sm:inline mr-3">
@@ -205,18 +205,18 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-10">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {/* ウェルカムバナー */}
-        <div className="mb-10 p-6 rounded-2xl bg-gradient-to-r from-primary to-primary-light text-white shadow-md relative overflow-hidden">
+        <div className="mb-8 sm:mb-10 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-primary to-primary-light text-white shadow-md relative overflow-hidden">
           <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle at 80% 50%, white 0%, transparent 60%)" }} />
           <div className="relative">
             <p className="text-sm font-medium opacity-80 mb-1">おかえりなさい 👋</p>
-            <h1 className="text-2xl font-bold mb-2">{user.displayName ?? user.email?.split("@")[0]} さん</h1>
+            <h1 className="text-xl sm:text-2xl font-bold mb-2">{user.displayName ?? user.email?.split("@")[0]} さん</h1>
             <p className="text-sm opacity-75">今日も発表練習でプレゼン力を磨きましょう</p>
           </div>
           <button
             onClick={() => { setIsModalOpen(true); setNewSessionTitle(""); }}
-            className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary font-semibold rounded-full text-sm hover:shadow-md transition-all hover:scale-105 active:scale-100"
+            className="mt-4 inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-white text-primary font-semibold rounded-full text-sm hover:shadow-md transition-all hover:scale-105 active:scale-100"
           >
             <Plus size={16} />
             新しい練習を始める
@@ -254,7 +254,7 @@ export default function HomePage() {
                 {/* 削除ボタン */}
                 <button
                   onClick={(e) => handleDeleteSession(e, session.id)}
-                  className="absolute top-3 right-3 p-1.5 rounded-lg text-foreground-muted hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all z-10"
+                  className="absolute top-3 right-3 p-1.5 rounded-lg text-foreground-muted hover:text-red-500 hover:bg-red-50 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all z-10"
                   title="削除"
                 >
                   <Trash2 size={14} />
