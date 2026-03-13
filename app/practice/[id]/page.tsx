@@ -271,8 +271,9 @@ export default function PracticePage({
                                                 : "bg-gray-100 text-gray-800 rounded-bl-sm"
                                                 }`}
                                         >
-                                            {msg.text}
-
+                                            <div className="markdown-content">
+                                                <ReactMarkdown>{msg.text}</ReactMarkdown>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}

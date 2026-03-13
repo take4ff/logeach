@@ -24,6 +24,10 @@ function buildSystemPrompt(personaData?: PersonaData): string {
     if (!personaData || !personaData.name) {
         return [
             '返答の最後に必ず、あなたの感情を "emotion: <感情名>" の形式で1行追加してください。',
+            '回答文の中で、以下の要素に該当する箇所は必ず Markdown の **太字** で強調してください：',
+            '1. その事物の定義や肩書き（例：「日本一高い山」「ユネスコ世界文化遺産」など）',
+            '2. 文章の結論となる象徴的なフレーズ（例：「日本の象徴」「生きている日本の物語」など）',
+            '3. 重要な数値や固有名詞',
             '感情は必ず次の6つのいずれかを使用してください: neutral / thinking / satisfied / skeptical / angry / impressed',
         ].join('\n');
     }
@@ -233,7 +237,7 @@ export async function POST(req: Request) {
         });
     } catch (error: any) {
         console.error('Gemini/Qwen API エラー:', error);
-        
+
         let status = 500;
         let message = 'Internal Server Error';
 
