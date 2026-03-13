@@ -9,7 +9,6 @@ export interface PersonaData {
     background: string;
 }
 
-/** ペルソナ情報からシステムプロンプトを組み立てる */
 const ALLOWED_EMOTIONS = ['neutral', 'thinking', 'satisfied', 'skeptical', 'angry', 'impressed'] as const;
 type Emotion = typeof ALLOWED_EMOTIONS[number];
 
@@ -20,9 +19,7 @@ function normalizeEmotion(raw: string): Emotion {
         : 'neutral';
 }
 
-/** テキストから "emotion: <感情名>" の行を削除する */
 function cleanAssistantText(text: string): string {
-    // 正規表現で "emotion: 感情名" の行（前後改行含む）を空文字に置換
     return text.replace(/emotion:\s*.+$/m, '').trim();
 }
 
@@ -30,10 +27,6 @@ function buildSystemPrompt(personaData?: PersonaData): string {
     if (!personaData || !personaData.name) {
         return [
             '返答の最後に必ず、あなたの感情を "emotion: <感情名>" の形式で1行追加してください。',
-            '回答文の中で、以下の要素に該当する箇所は必ず Markdown の **太字** で強調してください：',
-            '1. その事物の定義や肩書き（例：「日本一高い山」「ユネスコ世界文化遺産」など）',
-            '2. 文章の結論となる象徴的なフレーズ（例：「日本の象徴」「生きている日本の物語」など）',
-            '3. 重要な数値や固有名詞',
             '感情は必ず次の6つのいずれかを使用してください: neutral / thinking / satisfied / skeptical / angry / impressed',
         ].join('\n');
     }
@@ -60,16 +53,77 @@ function buildSystemPrompt(personaData?: PersonaData): string {
         .trim();
 }
 
+/** 100字要約を作る（簡易版: 文字トリム＋prefix） */
+function buildSummaryText(messages: { role: string; text: string }[]): string {
+    const joined = messages
+        .map((m) => (m.role === 'assistant' ? `AI:${m.text}` : `User:${m.text}`))
+        .join(' / ');
+    const summaryBody = joined.slice(0, 100);
+    return `【これまでの会話概要（100字）】${summaryBody}`;
+}
+
+/**
+ * 履歴から「要約メッセージ + 直近の生メッセージ」を作る
+ * - 10件超えていたら先頭側を要約1件に圧縮し、その要約もDBに保存
+ * - モデルには「要約1件 + 直近数件」を渡す
+ */
+async function buildLogicalHistoryForSession(sessionId: string) {
+    const pastMessages = await fetchMessages(sessionId);
+
+    // すでに存在する要約メッセージ（prefixで判定）
+    const existingSummary = pastMessages.find((m: any) =>
+        m.text?.startsWith('【これまでの会話概要（100字）】')
+    );
+
+    // まず通常の履歴（全件）をベースにする
+    let logicalMessages = [...pastMessages];
+
+    if (pastMessages.length > 10 && !existingSummary) {
+        // まだ要約が無い & 10件超えたタイミングで要約を作る
+        const summaryText = buildSummaryText(pastMessages);
+
+        // 要約をDBに1メッセージとして保存（roleはassistantにしておく）
+        await saveMessage(sessionId, 'assistant', summaryText);
+
+        // 「論理履歴」としては「要約 + 直近数件」で組み立て直す
+        const recent = pastMessages.slice(-5); // 直近5件はそのまま残すなど適宜
+        logicalMessages = [
+            {
+                id: 'summary', // 仮ID（fetchMessagesの型に合わせる必要があれば調整）
+                role: 'assistant',
+                text: summaryText,
+            } as any,
+            ...recent,
+        ];
+    } else if (existingSummary) {
+        // 既に要約がある場合は、その要約 + 直近の生メッセージだけを使う
+        const summaryIndex = pastMessages.indexOf(existingSummary);
+        const recent = pastMessages.slice(Math.max(summaryIndex + 1, pastMessages.length - 5));
+        logicalMessages = [existingSummary, ...recent];
+    }
+
+    return logicalMessages;
+}
+
 export async function POST(req: Request) {
     try {
-        const { sessionId, message, persona, slideUrl, personaData, apiKey, modelProvider = 'gemini' } = await req.json();
+        const { sessionId, message, persona, slideUrl, personaData, apiKey, modelProvider = 'gemini' } =
+            await req.json();
 
         if (!apiKey) {
-            return Response.json({ error: 'APIキーが設定されていません。ホーム画面から設定してください。' }, { status: 400 });
+            return Response.json(
+                { error: 'APIキーが設定されていません。ホーム画面から設定してください。' },
+                { status: 400 },
+            );
         }
 
         if (!message) {
             return Response.json({ error: 'message は必須です' }, { status: 400 });
+        }
+
+        // ユーザーのメッセージを保存
+        if (sessionId) {
+            await saveMessage(sessionId, 'user', message);
         }
 
         const systemInstruction = buildSystemPrompt(personaData);
@@ -81,19 +135,17 @@ export async function POST(req: Request) {
                 baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
             });
 
-            // 過去の履歴を取得
-            const history: OpenAI.Chat.ChatCompletionMessageParam[] = [];
+            // 要約ロジックを考慮した「論理履歴」を取得
+            let history: OpenAI.Chat.ChatCompletionMessageParam[] = [];
             if (sessionId) {
-                const pastMessages = await fetchMessages(sessionId);
-                const recent = pastMessages.slice(-15);
+                const logicalMessages = await buildLogicalHistoryForSession(sessionId);
+                const recent = logicalMessages.slice(-15);
                 for (const msg of recent) {
-                    history.push({ role: msg.role === 'assistant' ? 'assistant' : 'user', content: msg.text });
+                    history.push({
+                        role: msg.role === 'assistant' ? 'assistant' : 'user',
+                        content: msg.text,
+                    });
                 }
-            }
-
-            // 今回のユーザー発言を保存（履歴取得後に保存して重複投入を防ぐ）
-            if (sessionId) {
-                await saveMessage(sessionId, 'user', message);
             }
 
             const qwenMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -126,14 +178,16 @@ export async function POST(req: Request) {
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ emotion })}\n\n`));
 
                         if (sessionId) {
-                            const cleanText = cleanAssistantText(fullText); // 感情行をカット
+                            const cleanText = cleanAssistantText(fullText);
                             await saveMessage(sessionId, 'assistant', cleanText, emotion);
                         }
 
                         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
                     } catch (err) {
                         console.error('Qwen stream error:', err);
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'Stream error' })}\n\n`));
+                        controller.enqueue(
+                            encoder.encode(`data: ${JSON.stringify({ error: 'Stream error' })}\n\n`),
+                        );
                     } finally {
                         controller.close();
                     }
@@ -144,40 +198,33 @@ export async function POST(req: Request) {
                 headers: {
                     'Content-Type': 'text/event-stream',
                     'Cache-Control': 'no-cache',
-                    'Connection': 'keep-alive',
+                    Connection: 'keep-alive',
                 },
             });
         }
 
         // ---- Gemini ----
+
         const client = new GoogleGenAI({ apiKey });
 
         const slideInstruction = slideUrl
             ? 'ユーザーが添付したスライドの内容を踏まえて反論・コメントしてください。'
             : '';
 
-        // 過去のメッセージ履歴を取得して Gemini のフォーマットに変換
+        // 要約ロジックを考慮した履歴を Gemini 形式に変換
         let historyContents: Content[] = [];
         if (sessionId) {
-            const pastMessages = await fetchMessages(sessionId);
-            // トークン節約のため、直近の最大15件のメッセージのみをコンテキストとして保持する
-            const recentMessages = pastMessages.slice(-15);
-            historyContents = recentMessages.map(msg => ({
+            const logicalMessages = await buildLogicalHistoryForSession(sessionId);
+            const recentMessages = logicalMessages.slice(-15);
+            historyContents = recentMessages.map((msg: any) => ({
                 role: msg.role === 'assistant' ? 'model' : 'user',
-                parts: [{ text: msg.text }]
+                parts: [{ text: msg.text }],
             }));
         }
 
-        // 今回のユーザー発言を保存（履歴取得後に保存して重複投入を防ぐ）
-        if (sessionId) {
-            await saveMessage(sessionId, 'user', message);
-        }
-
-        // 今回のメッセージを組み立てる
+        // 今回のメッセージ
         let currentMessageContent: Content;
         if (slideUrl) {
-            // fileData.fileUri は Gemini Files API の URI 専用のため、
-            // 任意の公開URL（Supabase 等）は fetch して base64 に変換して渡す
             const pdfRes = await fetch(slideUrl);
             if (!pdfRes.ok) throw new Error(`PDF fetch failed: ${pdfRes.status}`);
             const pdfBuffer = await pdfRes.arrayBuffer();
@@ -187,18 +234,16 @@ export async function POST(req: Request) {
                 parts: [
                     { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
                     { text: slideInstruction + '\n' + message },
-                ]
+                ],
             };
         } else {
             currentMessageContent = {
                 role: 'user',
-                parts: [{ text: message }]
+                parts: [{ text: message }],
             };
         }
 
-        // 履歴と今回のメッセージを結合して Gemini に渡す contents を作成
         const contents: Content[] = [...historyContents, currentMessageContent];
-
 
         const result = await client.models.generateContentStream({
             model: 'gemini-2.5-flash',
@@ -225,16 +270,17 @@ export async function POST(req: Request) {
                     const emotion = emotionMatch ? normalizeEmotion(emotionMatch[1]) : 'neutral';
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ emotion })}\n\n`));
 
-                    // AIの応答をDBに保存
                     if (sessionId) {
-                        const cleanText = cleanAssistantText(fullText); // 感情行をカット
+                        const cleanText = cleanAssistantText(fullText);
                         await saveMessage(sessionId, 'assistant', cleanText, emotion);
                     }
 
                     controller.enqueue(encoder.encode('data: [DONE]\n\n'));
                 } catch (err) {
                     console.error('Stream error:', err);
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'Stream error' })}\n\n`));
+                    controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({ error: 'Stream error' })}\n\n`),
+                    );
                 } finally {
                     controller.close();
                 }
@@ -245,7 +291,7 @@ export async function POST(req: Request) {
             headers: {
                 'Content-Type': 'text/event-stream',
                 'Cache-Control': 'no-cache',
-                'Connection': 'keep-alive',
+                Connection: 'keep-alive',
             },
         });
     } catch (error: any) {
@@ -256,7 +302,8 @@ export async function POST(req: Request) {
 
         if (error?.status === 429 || error?.code === 429) {
             status = 429;
-            message = 'APIの利用制限（上限または一時的なリクエスト過多）に達しました。しばらく待ってからもう一度お試しください。無料枠の場合はAPIキーのクォータを確認してください。';
+            message =
+                'APIの利用制限（上限または一時的なリクエスト過多）に達しました。しばらく待ってからもう一度お試しください。無料枠の場合はAPIキーのクォータを確認してください。';
         } else if (error?.message) {
             message = error.message;
         }
