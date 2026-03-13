@@ -204,7 +204,7 @@ export default function PracticePage({
     }, []);
 
     return (
-        <div className="h-[100dvh] flex flex-col bg-background">
+        <div className="min-h-screen lg:h-[100dvh] flex flex-col bg-background">
             {/* チュートリアル（セッション初回のみ） */}
             {isTutorialOpen && (
                 <TutorialOverlay onClose={() => setIsTutorialOpen(false)} />
@@ -232,7 +232,7 @@ export default function PracticePage({
             </header>
 
             {/* メインコンテンツ */}
-            <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col lg:flex-row lg:overflow-hidden">
                 {/* 左カラム */}
                 <div className="flex-1 min-h-0 flex flex-col lg:border-r border-border">
                     {/* 左上: スライド */}
