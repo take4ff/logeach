@@ -72,11 +72,6 @@ export async function POST(req: Request) {
             return Response.json({ error: 'message は必須です' }, { status: 400 });
         }
 
-        // ユーザーのメッセージを保存
-        if (sessionId) {
-            await saveMessage(sessionId, 'user', message);
-        }
-
         const systemInstruction = buildSystemPrompt(personaData);
 
         // ---- Qwen (OpenAI互換API) ----
@@ -94,6 +89,11 @@ export async function POST(req: Request) {
                 for (const msg of recent) {
                     history.push({ role: msg.role === 'assistant' ? 'assistant' : 'user', content: msg.text });
                 }
+            }
+
+            // 今回のユーザー発言を保存（履歴取得後に保存して重複投入を防ぐ）
+            if (sessionId) {
+                await saveMessage(sessionId, 'user', message);
             }
 
             const qwenMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -166,6 +166,11 @@ export async function POST(req: Request) {
                 role: msg.role === 'assistant' ? 'model' : 'user',
                 parts: [{ text: msg.text }]
             }));
+        }
+
+        // 今回のユーザー発言を保存（履歴取得後に保存して重複投入を防ぐ）
+        if (sessionId) {
+            await saveMessage(sessionId, 'user', message);
         }
 
         // 今回のメッセージを組み立てる
