@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/src/components/auth/AuthProvider";
 import { supabase } from "@/src/lib/supabase";
 import Logo from "@/src/components/common/Logo";
+import { Plus, Settings, LogOut, Trash2, ArrowRight, User, Mic, ChevronRight, X } from "lucide-react";
 
 // データベースからの取得結果の型定義
 type SessionWithPersona = {
@@ -161,108 +162,152 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background relative">
-      <main className="max-w-5xl mx-auto px-6 py-16">
-        <div className="flex justify-between items-center mb-12">
-          <Logo size="large" />
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground hidden sm:inline">
+    <div className="min-h-screen bg-[#f5f7fa]">
+      {/* ヘッダー */}
+      <header className="bg-white border-b border-border sticky top-0 z-20 shadow-sm">
+        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+          <Logo size="small" />
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-foreground-muted hidden sm:inline mr-3">
               {user.displayName ?? user.email}
             </span>
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="text-sm px-4 py-2 text-muted-foreground hover:bg-muted rounded transition-colors flex items-center gap-1"
+              className="flex items-center gap-1.5 text-sm px-3 py-1.5 text-foreground-secondary hover:text-primary hover:bg-primary-bg rounded-lg transition-colors"
             >
-              <span>⚙️</span> 設定
+              <Settings size={15} />
+              <span className="hidden sm:inline">設定</span>
             </button>
             <button
               onClick={() => signOut()}
-              className="text-sm px-4 py-2 text-muted-foreground hover:bg-muted rounded transition-colors"
+              className="flex items-center gap-1.5 text-sm px-3 py-1.5 text-foreground-secondary hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
             >
-              ログアウト
+              <LogOut size={15} />
+              <span className="hidden sm:inline">ログアウト</span>
             </button>
           </div>
         </div>
+      </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* 新規作成カード */}
+      <main className="max-w-5xl mx-auto px-6 py-10">
+        {/* ウェルカムバナー */}
+        <div className="mb-10 p-6 rounded-2xl bg-gradient-to-r from-primary to-primary-light text-white shadow-md relative overflow-hidden">
+          <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle at 80% 50%, white 0%, transparent 60%)" }} />
+          <div className="relative">
+            <p className="text-sm font-medium opacity-80 mb-1">おかえりなさい 👋</p>
+            <h1 className="text-2xl font-bold mb-2">{user.displayName ?? user.email?.split("@")[0]} さん</h1>
+            <p className="text-sm opacity-75">今日も発表練習でプレゼン力を磨きましょう</p>
+          </div>
           <button
             onClick={() => { setIsModalOpen(true); setNewSessionTitle(""); }}
-            className="flex flex-col items-center justify-center p-8 min-h-[180px] rounded-xl border border-dashed border-border hover:bg-muted/50 hover:border-solid transition-all cursor-pointer"
+            className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary font-semibold rounded-full text-sm hover:shadow-md transition-all hover:scale-105 active:scale-100"
           >
-            <span className="text-3xl mb-3 text-muted-foreground">＋</span>
-            <span className="font-medium">新しい練習を始める</span>
+            <Plus size={16} />
+            新しい練習を始める
           </button>
+        </div>
 
-          {/* セッション一覧 */}
-          {loadingSessions ? (
-            <div className="col-span-2 flex items-center justify-center p-8 border rounded-xl bg-card">
-              <p className="text-muted-foreground">履歴を読み込み中...</p>
-            </div>
-          ) : sessions.length > 0 ? (
-            sessions.map((session) => (
+        {/* セクションヘッダー */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+            <Mic size={16} className="text-primary" />
+            練習履歴
+            {!loadingSessions && sessions.length > 0 && (
+              <span className="text-xs font-normal text-foreground-muted bg-[#eef2f7] px-2 py-0.5 rounded-full">
+                {sessions.length} 件
+              </span>
+            )}
+          </h2>
+        </div>
+
+        {/* セッション一覧 */}
+        {loadingSessions ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-[160px] rounded-xl bg-white border border-border animate-pulse" />
+            ))}
+          </div>
+        ) : sessions.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {sessions.map((session) => (
               <div
                 key={session.id}
                 onClick={() => handleOpenSession(session.id)}
-                className="relative flex flex-col items-start text-left p-6 min-h-[180px] rounded-xl border border-border bg-card hover:border-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md group"
+                className="relative flex flex-col p-5 rounded-xl border border-border bg-white hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group animate-fade-in"
               >
                 {/* 削除ボタン */}
                 <button
                   onClick={(e) => handleDeleteSession(e, session.id)}
-                  className="absolute top-3 right-3 p-1.5 rounded-md text-muted-foreground hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all z-10"
+                  className="absolute top-3 right-3 p-1.5 rounded-lg text-foreground-muted hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all z-10"
                   title="削除"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                    <path d="M10 11v6" />
-                    <path d="M14 11v6" />
-                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                  </svg>
+                  <Trash2 size={14} />
                 </button>
 
-                <div className="flex items-center gap-2 mb-3 w-full pr-6">
-                  <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium shrink-0">
-                    練習セッション
-                  </span>
-                  <span className="text-sm text-muted-foreground ml-auto whitespace-nowrap">
-                    {new Date(session.created_at).toLocaleDateString('ja-JP')}
-                  </span>
-                </div>
+                {/* 上部: 日付 */}
+                <span className="text-xs text-foreground-muted mb-3">
+                  {new Date(session.created_at).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' })}
+                </span>
 
                 {/* タイトル */}
-                <h3 className="text-lg font-semibold mb-2 line-clamp-1 w-full" title={session.title || "無題のセッション"}>
+                <h3 className="text-sm font-semibold text-foreground line-clamp-2 mb-2 pr-6" title={session.title || "無題のセッション"}>
                   {session.title || "無題のセッション"}
                 </h3>
 
-                {/* ペルソナ名 */}
-                <div className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0"></div>
-                  <span className="truncate">使用ペルソナ: {session.personas?.name ? session.personas.name : "未設定"}</span>
+                {/* ペルソナ */}
+                <div className="flex items-center gap-1.5 text-xs text-foreground-muted mt-auto">
+                  <User size={12} className="shrink-0" />
+                  <span className="truncate">{session.personas?.name ?? "ペルソナ未設定"}</span>
                 </div>
 
-                <div className="mt-auto pt-4 border-t border-border w-full flex justify-end items-center text-sm font-medium text-primary">
-                  <span>詳細を見る &rarr;</span>
+                {/* フッター */}
+                <div className="mt-3 pt-3 border-t border-border flex items-center justify-end text-xs font-medium text-primary gap-1 group-hover:gap-2 transition-all">
+                  <span>開く</span>
+                  <ChevronRight size={13} />
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="col-span-1 md:col-span-2 flex items-center justify-center p-8 border border-dashed rounded-xl bg-card/50 text-muted-foreground">
-              <p>過去の練習記録はまだありません</p>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border bg-white text-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-primary-bg flex items-center justify-center">
+              <Mic size={24} className="text-primary" />
             </div>
-          )}
-        </div>
+            <div>
+              <p className="font-semibold text-foreground mb-1">まだ練習記録がありません</p>
+              <p className="text-sm text-foreground-muted">上の「新しい練習を始める」から最初のセッションを作成しましょう</p>
+            </div>
+            <button
+              onClick={() => { setIsModalOpen(true); setNewSessionTitle(""); }}
+              className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white font-semibold rounded-full text-sm hover:bg-primary-dark transition-colors shadow-sm"
+            >
+              <Plus size={16} />
+              新しい練習を始める
+            </button>
+          </div>
+        )}
       </main>
 
       {/* 新規作成モーダル */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background rounded-xl shadow-lg w-full max-w-md p-6">
-            <h2 className="text-xl font-bold mb-4">新しい練習セッション</h2>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold">新しい練習セッション</h2>
+              <button onClick={() => setIsModalOpen(false)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                <X size={18} className="text-foreground-muted" />
+              </button>
+            </div>
             <form onSubmit={handleCreateSession}>
-              <div className="mb-6">
-                <label htmlFor="sessionTitle" className="block text-sm font-medium mb-2">
-                  セッション名（テーマなど）
+              <div className="mb-5">
+                <label htmlFor="sessionTitle" className="block text-sm font-medium mb-1.5">
+                  セッション名（発表テーマなど）
                 </label>
                 <input
                   id="sessionTitle"
@@ -272,24 +317,28 @@ export default function HomePage() {
                   placeholder="例: IT企業の面接練習 第1回"
                   value={newSessionTitle}
                   onChange={(e) => setNewSessionTitle(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
                 />
               </div>
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   disabled={isCreating}
-                  className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted"
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-foreground-secondary hover:bg-muted transition-colors"
                 >
                   キャンセル
                 </button>
                 <button
                   type="submit"
                   disabled={isCreating || !newSessionTitle.trim()}
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
+                  className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-white hover:bg-primary-dark disabled:opacity-50 transition-colors shadow-sm"
                 >
-                  {isCreating ? "作成中..." : "作成して開始"}
+                  {isCreating ? (
+                    <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />作成中...</>
+                  ) : (
+                    <><ArrowRight size={15} />作成して開始</>
+                  )}
                 </button>
               </div>
             </form>
@@ -299,9 +348,20 @@ export default function HomePage() {
 
       {/* 設定モーダル */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background rounded-xl shadow-lg w-full max-w-md p-6">
-            <h2 className="text-xl font-bold mb-4">設定</h2>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          onClick={() => setIsSettingsOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold flex items-center gap-2"><Settings size={18} className="text-primary" /> 設定</h2>
+              <button onClick={() => setIsSettingsOpen(false)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                <X size={18} className="text-foreground-muted" />
+              </button>
+            </div>
             <form onSubmit={(e) => {
               e.preventDefault();
               localStorage.setItem("gemini_api_key", apiKeyInput);
@@ -313,38 +373,36 @@ export default function HomePage() {
               {/* 使用モデル選択 */}
               <div className="mb-5">
                 <p className="text-sm font-medium mb-2">使用するAIモデル</p>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="model"
-                      value="gemini"
-                      checked={preferredModel === 'gemini'}
-                      onChange={() => setPreferredModel('gemini')}
-                    />
-                    <span className="text-sm">Gemini (Google)</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="model"
-                      value="qwen"
-                      checked={preferredModel === 'qwen'}
-                      onChange={() => setPreferredModel('qwen')}
-                    />
-                    <span className="text-sm">Qwen (Alibaba)</span>
-                  </label>
+                <div className="flex gap-3">
+                  {(["gemini", "qwen"] as const).map((model) => (
+                    <label
+                      key={model}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-medium cursor-pointer transition-all ${
+                        preferredModel === model
+                          ? "border-primary bg-primary-bg text-primary"
+                          : "border-border text-foreground-secondary hover:border-primary/40"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="model"
+                        value={model}
+                        checked={preferredModel === model}
+                        onChange={() => setPreferredModel(model)}
+                        className="hidden"
+                      />
+                      {model === "gemini" ? "✦ Gemini" : "◈ Qwen"}
+                    </label>
+                  ))}
                 </div>
               </div>
 
               {/* Gemini APIキー */}
               <div className="mb-4">
-                <label htmlFor="apiKey" className="block text-sm font-medium mb-1">
-                  Gemini API キー
-                </label>
-                <div className="text-xs text-muted-foreground mb-2">
-                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                    Google AI Studioから取得
+                <label htmlFor="apiKey" className="block text-sm font-medium mb-1.5">Gemini API キー</label>
+                <div className="text-xs text-foreground-muted mb-2">
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    Google AI Studioから取得 →
                   </a>
                 </div>
                 <input
@@ -353,18 +411,16 @@ export default function HomePage() {
                   placeholder="AIzaSy..."
                   value={apiKeyInput}
                   onChange={(e) => setApiKeyInput(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
                 />
               </div>
 
               {/* Qwen APIキー */}
-              <div className="mb-6">
-                <label htmlFor="qwenApiKey" className="block text-sm font-medium mb-1">
-                  Qwen API キー
-                </label>
-                <div className="text-xs text-muted-foreground mb-2">
-                  <a href="https://bailian.console.aliyun.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                    Alibaba Cloudバイリアンから取得
+              <div className="mb-5">
+                <label htmlFor="qwenApiKey" className="block text-sm font-medium mb-1.5">Qwen API キー</label>
+                <div className="text-xs text-foreground-muted mb-2">
+                  <a href="https://bailian.console.aliyun.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    Alibaba Cloudバイリアンから取得 →
                   </a>
                 </div>
                 <input
@@ -373,15 +429,15 @@ export default function HomePage() {
                   placeholder="sk-..."
                   value={qwenApiKeyInput}
                   onChange={(e) => setQwenApiKeyInput(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
                 />
               </div>
 
-              <div className="text-xs text-muted-foreground mb-4">
-                APIキーはブラウザにのみ保存され、サーバーには送信・蓄積されません。
-              </div>
+              <p className="text-xs text-foreground-muted mb-4 bg-[#f5f7fa] rounded-lg px-3 py-2">
+                🔒 APIキーはブラウザにのみ保存され、サーバーには送信されません。
+              </p>
 
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -390,14 +446,14 @@ export default function HomePage() {
                     setPreferredModel((localStorage.getItem("preferred_model") as 'gemini' | 'qwen') || 'gemini');
                     setIsSettingsOpen(false);
                   }}
-                  className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted"
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-foreground-secondary hover:bg-muted transition-colors"
                 >
                   キャンセル
                 </button>
                 <button
                   type="submit"
                   disabled={preferredModel === 'gemini' ? !apiKeyInput.trim() : !qwenApiKeyInput.trim()}
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-white hover:bg-primary-dark disabled:opacity-50 transition-colors shadow-sm"
                 >
                   保存
                 </button>
