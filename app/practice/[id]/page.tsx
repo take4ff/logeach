@@ -3,6 +3,7 @@
 import { use, useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import ReactMarkdown from "react-markdown";
 const SlideViewer = dynamic(
     () => import("@/src/components/practice/SlideViewer"),
     { ssr: false }
