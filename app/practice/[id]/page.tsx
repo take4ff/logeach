@@ -248,7 +248,7 @@ export default function PracticePage({
                 <div className="w-[260px] sm:w-[300px] md:w-[360px] lg:w-[420px] flex flex-col bg-white">
                     {/* 右カラム: アバター表示 */}
                     <div className="border-b border-border bg-gray-50/30">
-                        <CharacterAvatar emotion={currentEmotion} />
+                        <CharacterAvatar emotion={currentEmotion} sessionId={id} />
                     </div>
                     {/* AIコメント表示エリア（スクロール） */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">

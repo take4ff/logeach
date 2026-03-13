@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/components/auth/AuthProvider";
+import { uploadAvatarImage, getAvatarUrl } from "@/src/lib/storage";
+import type { EmotionType } from "@/src/components/practice/CharacterAvatar";
 
 /**
  * PersonaConfig コンポーネント
@@ -21,6 +23,34 @@ export default function PersonaConfig({
     const [landmines, setLandmines] = useState("");
     const [background, setBackground] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+
+    // アバターアップロード用ステート
+    const EMOTIONS: EmotionType[] = ["neutral", "thinking", "satisfied", "skeptical", "angry", "impressed"];
+    const EMOTION_LABELS: Record<EmotionType, string> = {
+        neutral: "普通",
+        thinking: "考え中",
+        satisfied: "満足",
+        skeptical: "懐疑的",
+        angry: "怒り",
+        impressed: "感銘",
+    };
+    const [avatarUploading, setAvatarUploading] = useState<Record<EmotionType, boolean>>({
+        neutral: false, thinking: false, satisfied: false,
+        skeptical: false, angry: false, impressed: false,
+    });
+    // 各感情のサムネイルURL（アップロード後に更新）
+    const [avatarThumbs, setAvatarThumbs] = useState<Record<EmotionType, string>>(() => {
+        const init = {} as Record<EmotionType, string>;
+        for (const em of ["neutral", "thinking", "satisfied", "skeptical", "angry", "impressed"] as EmotionType[]) {
+            init[em] = getAvatarUrl(sessionId, em);
+        }
+        return init;
+    });
+    // サムネイルが実際に存在するか（onError でフォールバック）
+    const [avatarExists, setAvatarExists] = useState<Record<EmotionType, boolean>>({
+        neutral: false, thinking: false, satisfied: false,
+        skeptical: false, angry: false, impressed: false,
+    });
 
     // 初期化時に既存のデータを取得する
     useEffect(() => {
@@ -103,6 +133,21 @@ export default function PersonaConfig({
         }
     };
 
+    const handleAvatarUpload = async (emotion: EmotionType, file: File) => {
+        setAvatarUploading((prev) => ({ ...prev, [emotion]: true }));
+        try {
+            const url = await uploadAvatarImage(file, sessionId, emotion);
+            // キャッシュバスターを付与してサムネイルを更新
+            setAvatarThumbs((prev) => ({ ...prev, [emotion]: `${url}?t=${Date.now()}` }));
+            setAvatarExists((prev) => ({ ...prev, [emotion]: true }));
+        } catch (err: any) {
+            console.error("アバターアップロードエラー:", err);
+            alert(`アップロードに失敗しました: ${err.message || "不明なエラー"}`);
+        } finally {
+            setAvatarUploading((prev) => ({ ...prev, [emotion]: false }));
+        }
+    };
+
     return (
         <div className="space-y-6">
             <form onSubmit={handleSave} className="space-y-4">
@@ -152,6 +197,62 @@ export default function PersonaConfig({
                     {isSaving ? "保存中..." : "保存する"}
                 </button>
             </form>
+
+            {/* アバター画像アップロードセクション */}
+            <div className="border-t border-border pt-4">
+                <p className="text-sm font-medium mb-3">感情ごとのアバター画像</p>
+                <p className="text-xs text-muted-foreground mb-4">
+                    各感情に対応する画像をアップロードすると、デフォルト画像の代わりに使用されます（PNG・JPG推奨）。
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                    {EMOTIONS.map((emotion) => (
+                        <div key={emotion} className="flex flex-col items-center gap-2 p-3 border rounded-lg bg-muted/20">
+                            {/* サムネイル */}
+                            <div className="w-16 h-16 rounded-md overflow-hidden bg-muted flex items-center justify-center shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={avatarThumbs[emotion]}
+                                    alt={`${emotion} avatar`}
+                                    className="w-full h-full object-cover"
+                                    onLoad={() =>
+                                        setAvatarExists((prev) => ({ ...prev, [emotion]: true }))
+                                    }
+                                    onError={(e) => {
+                                        setAvatarExists((prev) => ({ ...prev, [emotion]: false }));
+                                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                                    }}
+                                />
+                                {!avatarExists[emotion] && (
+                                    <span className="text-2xl text-muted-foreground select-none">🖼️</span>
+                                )}
+                            </div>
+
+                            {/* 感情ラベル */}
+                            <span className="text-xs font-medium text-center leading-tight">
+                                {EMOTION_LABELS[emotion]}
+                                <br />
+                                <span className="text-muted-foreground font-normal">({emotion})</span>
+                            </span>
+
+                            {/* アップロードボタン */}
+                            <label className={`w-full text-center cursor-pointer text-xs px-2 py-1.5 rounded-md border border-border transition-colors ${avatarUploading[emotion] ? "opacity-50 cursor-not-allowed bg-muted" : "hover:bg-muted"}`}>
+                                {avatarUploading[emotion] ? "アップロード中..." : avatarExists[emotion] ? "変更" : "選択"}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    disabled={avatarUploading[emotion]}
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleAvatarUpload(emotion, file);
+                                        e.target.value = "";
+                                    }}
+                                />
+                            </label>
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
     );
 }
