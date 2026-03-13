@@ -22,7 +22,8 @@ import FeedbackModal from "@/src/components/practice/FeedbackModal";
 import { supabase } from "@/src/lib/supabase";
 import Logo from "@/src/components/common/Logo";
 import type { PersonaData } from "@/app/api/chat/route";
-import { Users, Sliders, BookOpen, ChevronLeft } from "lucide-react";
+import { Users, Sliders, BookOpen, ChevronLeft, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/src/components/common/ThemeProvider";
 
 export default function PracticePage({
     params,
@@ -108,6 +109,7 @@ export default function PracticePage({
     const [feedbackResult, setFeedbackResult] = useState<string | null>(null);
     const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
     const [feedbackError, setFeedbackError] = useState<string | null>(null);
+    const { theme, toggleTheme } = useTheme();
 
     // チュートリアル（新規セッション＝メッセージ履歴が空の場合のみ表示）
     const [isTutorialOpen, setIsTutorialOpen] = useState(false);
@@ -202,13 +204,13 @@ export default function PracticePage({
     }, []);
 
     return (
-        <div className="h-screen flex flex-col bg-[#f5f7fa]">
+        <div className="h-screen flex flex-col bg-background">
             {/* チュートリアル（セッション初回のみ） */}
             {isTutorialOpen && (
                 <TutorialOverlay onClose={() => setIsTutorialOpen(false)} />
             )}
             {/* ヘッダー */}
-            <header className="bg-white border-b border-border px-4 py-2 flex items-center justify-between shadow-sm z-10">
+            <header className="bg-surface border-b border-border px-4 py-2 flex items-center justify-between shadow-sm z-10">
                 <Link
                     href="/"
                     className="flex items-center gap-1 text-sm text-foreground-muted hover:text-primary transition-colors rounded-lg px-2 py-1 hover:bg-primary-bg"
@@ -217,7 +219,16 @@ export default function PracticePage({
                     <span>戻る</span>
                 </Link>
                 <Logo size="small" withLink={false} />
-                <div className="w-20" />
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={toggleTheme}
+                        className="flex items-center p-1.5 rounded-lg text-foreground-secondary hover:text-primary hover:bg-primary-bg transition-colors"
+                        title={theme === 'dark' ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
+                    >
+                        {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                    </button>
+                    <div className="w-14" />
+                </div>
             </header>
 
             {/* メインコンテンツ */}
@@ -225,7 +236,7 @@ export default function PracticePage({
                 {/* 左カラム */}
                 <div className="flex-1 flex flex-col border-r border-border">
                     {/* 左上: スライド */}
-                    <div className="flex-1 border-b border-gray-800">
+                    <div className="flex-1 border-b border-border">
                         <SlideViewer
                             sessionId={id}
                             onPageChange={setCurrentPage}
@@ -243,7 +254,7 @@ export default function PracticePage({
                         />
                     </div>
                     {/* 左下: AIに反論 */}
-                    <div className="p-4 bg-white border-t border-border">
+                    <div className="p-4 bg-surface border-t border-border">
                         <label className="block text-sm font-medium mb-2">AIに反論</label>
                         <ChatInterface
                             sessionId={id}
@@ -257,9 +268,9 @@ export default function PracticePage({
                 </div>
 
                 {/* 右カラム: AIコメント + 設定 */}
-                <div className="w-[260px] sm:w-[300px] md:w-[360px] lg:w-[420px] flex flex-col bg-white shadow-[-2px_0_8px_rgba(0,0,0,0.04)]">
+                <div className="w-[260px] sm:w-[300px] md:w-[360px] lg:w-[420px] flex flex-col bg-surface shadow-[-2px_0_8px_rgba(0,0,0,0.04)]">
                     {/* アバター表示 */}
-                    <div className="border-b border-border bg-gray-50">
+                    <div className="border-b border-border bg-surface-hover">
                         <CharacterAvatar emotion={currentEmotion} sessionId={id} />
                     </div>
 
@@ -298,7 +309,7 @@ export default function PracticePage({
                                                         } ${
                                                             msg.role === "user"
                                                                 ? "bg-primary text-white rounded-2xl rounded-br-sm shadow-sm"
-                                                                : "bg-[#eef2f7] text-foreground rounded-2xl rounded-bl-sm shadow-sm"
+                                                                : "bg-surface-hover text-foreground rounded-2xl rounded-bl-sm shadow-sm"
                                                         }`}
                                                     >
                                                         <div className="markdown-content">
@@ -317,7 +328,7 @@ export default function PracticePage({
                                                             className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
                                                                 msg.role === "user"
                                                                     ? "text-primary-light hover:bg-primary-bg"
-                                                                    : "text-foreground-muted hover:bg-[#eef2f7]"
+                                                                    : "text-foreground-muted hover:bg-surface-hover"
                                                             }`}
                                                         >
                                                             {isExpanded ? "▲ 折りたたむ" : "▼ 続きを読む"}
@@ -332,7 +343,7 @@ export default function PracticePage({
                                 {/* ストリーミング中: タイピングアニメーション or テキスト */}
                                 {streamingText !== null && (
                                     <div className="flex justify-start animate-fade-in">
-                                        <div className="max-w-[88%] bg-[#eef2f7] text-foreground text-sm rounded-2xl rounded-bl-sm px-4 py-2.5 shadow-sm">
+                                        <div className="max-w-[88%] bg-surface-hover text-foreground text-sm rounded-2xl rounded-bl-sm px-4 py-2.5 shadow-sm">
                                             {streamingText === "考え中..." ? (
                                                 <span className="flex items-center gap-1.5 py-0.5">
                                                     <span className="typing-dot w-2 h-2 rounded-full bg-foreground-secondary inline-block" />
@@ -353,7 +364,7 @@ export default function PracticePage({
                     </div>
 
                     {/* 右カラム下部: ペルソナ情報 + 操作ボタン */}
-                    <div className="border-t border-border bg-[#f8fafc] p-3 space-y-2">
+                    <div className="border-t border-border bg-surface-hover p-3 space-y-2">
                         {/* 現在のペルソナ表示 */}
                         {currentPersona ? (
                             <div className="flex items-center gap-2 px-3 py-2 bg-primary-bg rounded-lg border border-[#b8d4e8]">
@@ -371,21 +382,21 @@ export default function PracticePage({
                         <div className="grid grid-cols-3 gap-1.5">
                             <button
                                 onClick={() => setIsPersonaSelectorOpen(true)}
-                                className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-white border border-border hover:border-primary/40 hover:bg-primary-bg text-foreground-secondary hover:text-primary transition-all text-center"
+                                className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-surface border border-border hover:border-primary/40 hover:bg-primary-bg text-foreground-secondary hover:text-primary transition-all text-center"
                             >
                                 <Users size={16} />
                                 <span className="text-[11px] font-medium leading-tight">ペルソナ<br/>選択</span>
                             </button>
                             <button
                                 onClick={() => setIsPersonaModalOpen(true)}
-                                className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-white border border-border hover:border-primary/40 hover:bg-primary-bg text-foreground-secondary hover:text-primary transition-all text-center"
+                                className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-surface border border-border hover:border-primary/40 hover:bg-primary-bg text-foreground-secondary hover:text-primary transition-all text-center"
                             >
                                 <Sliders size={16} />
                                 <span className="text-[11px] font-medium leading-tight">人物像<br/>設定</span>
                             </button>
                             <button
                                 onClick={() => setIsKnowledgeModalOpen(true)}
-                                className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-white border border-border hover:border-primary/40 hover:bg-primary-bg text-foreground-secondary hover:text-primary transition-all text-center"
+                                className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-surface border border-border hover:border-primary/40 hover:bg-primary-bg text-foreground-secondary hover:text-primary transition-all text-center"
                             >
                                 <BookOpen size={16} />
                                 <span className="text-[11px] font-medium leading-tight">前提<br/>知識</span>

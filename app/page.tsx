@@ -10,7 +10,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/src/components/auth/AuthProvider";
 import { supabase } from "@/src/lib/supabase";
 import Logo from "@/src/components/common/Logo";
-import { Plus, Settings, LogOut, Trash2, ArrowRight, User, Mic, ChevronRight, X } from "lucide-react";
+import { Plus, Settings, LogOut, Trash2, ArrowRight, User, Mic, ChevronRight, X, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/src/components/common/ThemeProvider";
 
 // データベースからの取得結果の型定義
 type SessionWithPersona = {
@@ -39,6 +40,7 @@ export default function HomePage() {
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [qwenApiKeyInput, setQwenApiKeyInput] = useState("");
   const [preferredModel, setPreferredModel] = useState<'gemini' | 'qwen'>('gemini');
+  const { theme, toggleTheme } = useTheme();
 
   // 認証チェック
   useEffect(() => {
@@ -169,15 +171,22 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f7fa]">
+    <div className="min-h-screen bg-background">
       {/* ヘッダー */}
-      <header className="bg-white border-b border-border sticky top-0 z-20 shadow-sm">
+      <header className="bg-surface border-b border-border sticky top-0 z-20 shadow-sm">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <Logo size="small" />
           <div className="flex items-center gap-1">
             <span className="text-sm text-foreground-muted hidden sm:inline mr-3">
               {user.displayName ?? user.email}
             </span>
+            <button
+              onClick={toggleTheme}
+              className="flex items-center p-2 rounded-lg text-foreground-secondary hover:text-primary hover:bg-primary-bg transition-colors"
+              title={theme === 'dark' ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
             <button
               onClick={() => setIsSettingsOpen(true)}
               className="flex items-center gap-1.5 text-sm px-3 py-1.5 text-foreground-secondary hover:text-primary hover:bg-primary-bg rounded-lg transition-colors"
@@ -220,7 +229,7 @@ export default function HomePage() {
             <Mic size={16} className="text-primary" />
             練習履歴
             {!loadingSessions && sessions.length > 0 && (
-              <span className="text-xs font-normal text-foreground-muted bg-[#eef2f7] px-2 py-0.5 rounded-full">
+              <span className="text-xs font-normal text-foreground-muted bg-surface-hover px-2 py-0.5 rounded-full">
                 {sessions.length} 件
               </span>
             )}
@@ -231,7 +240,7 @@ export default function HomePage() {
         {loadingSessions ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-[160px] rounded-xl bg-white border border-border animate-pulse" />
+              <div key={i} className="h-[160px] rounded-xl bg-surface border border-border animate-pulse" />
             ))}
           </div>
         ) : sessions.length > 0 ? (
@@ -240,7 +249,7 @@ export default function HomePage() {
               <div
                 key={session.id}
                 onClick={() => handleOpenSession(session.id)}
-                className="relative flex flex-col p-5 rounded-xl border border-border bg-white hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group animate-fade-in"
+                className="relative flex flex-col p-5 rounded-xl border border-border bg-surface hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group animate-fade-in"
               >
                 {/* 削除ボタン */}
                 <button
@@ -276,7 +285,7 @@ export default function HomePage() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border bg-white text-center gap-4">
+          <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border bg-surface text-center gap-4">
             <div className="w-14 h-14 rounded-full bg-primary-bg flex items-center justify-center">
               <Mic size={24} className="text-primary" />
             </div>
@@ -302,7 +311,7 @@ export default function HomePage() {
           onClick={() => setIsModalOpen(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-slide-up"
+            className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6 animate-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
@@ -324,7 +333,7 @@ export default function HomePage() {
                   placeholder="例: IT企業の面接練習 第1回"
                   value={newSessionTitle}
                   onChange={(e) => setNewSessionTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
+                  className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
                 />
               </div>
               <div className="flex justify-end gap-2">
@@ -360,7 +369,7 @@ export default function HomePage() {
           onClick={() => setIsSettingsOpen(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-slide-up"
+            className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6 animate-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
@@ -418,7 +427,7 @@ export default function HomePage() {
                   placeholder="AIzaSy..."
                   value={apiKeyInput}
                   onChange={(e) => setApiKeyInput(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
+                  className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
                 />
               </div>
 
@@ -436,11 +445,11 @@ export default function HomePage() {
                   placeholder="sk-..."
                   value={qwenApiKeyInput}
                   onChange={(e) => setQwenApiKeyInput(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
+                  className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
                 />
               </div>
 
-              <p className="text-xs text-foreground-muted mb-4 bg-[#f5f7fa] rounded-lg px-3 py-2">
+              <p className="text-xs text-foreground-muted mb-4 bg-surface-hover rounded-lg px-3 py-2">
                 🔒 APIキーはブラウザにのみ保存され、サーバーには送信されません。
               </p>
 

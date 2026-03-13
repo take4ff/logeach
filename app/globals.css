@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* クラスベースのダークモード有効化 (Tailwind v4) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ==========================================
    Logeach デザインシステム
    ライト基調 + ティール色アクセント
@@ -42,6 +45,27 @@
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
   --radius-full: 9999px;
+}
+
+/* ==========================================
+   ダークモード変数
+   ========================================== */
+.dark {
+  --background: #0f172a;
+  --background-white: #1e293b;
+  --surface: #1e293b;
+  --surface-hover: #293548;
+  --foreground: #e2e8f0;
+  --foreground-secondary: #94a3b8;
+  --foreground-muted: #64748b;
+  --border: #334155;
+  --border-light: #293548;
+  --primary-bg: #1e3a5f;
+
+  /* シャドウ（暗め） */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
 @theme inline {
