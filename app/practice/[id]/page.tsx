@@ -77,7 +77,12 @@ export default function PracticePage({
                 }
 
                 const data = await res.json();
-                setFeedbackResult(data.feedback ?? 'フィードバックを取得できませんでした。');
+                const feedbackText = data.feedback ?? 'フィードバックを取得できませんでした。';
+                setFeedbackResult(feedbackText);
+                setMessages((prev) => [
+                    ...prev,
+                    { role: "assistant" as const, text: feedbackText },
+                ]);
             } catch (err: unknown) {
                 const msg = err instanceof Error ? err.message : '不明なエラー';
                 setFeedbackError(`フィードバックの取得に失敗しました: ${msg}`);
@@ -90,6 +95,7 @@ export default function PracticePage({
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [streamingText, setStreamingText] = useState<string | null>(null);
+    const [expandedMessages, setExpandedMessages] = useState<Record<number, boolean>>({});
     const [historyLoading, setHistoryLoading] = useState(true);
     const [currentPersona, setCurrentPersona] = useState<PersonaData | null>(null);
     const [sessionPersonaId, setSessionPersonaId] = useState<string | null>(null);
@@ -265,15 +271,40 @@ export default function PracticePage({
                                         key={idx}
                                         className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                                     >
-                                        <div
-                                            className={`max-w-[85%] text-sm rounded-2xl px-4 py-2 whitespace-pre-wrap ${msg.role === "user"
-                                                ? "bg-blue-600 text-white rounded-br-sm"
-                                                : "bg-gray-100 text-gray-800 rounded-bl-sm"
-                                                }`}
-                                        >
-                                            {msg.text}
+                                        {(() => {
+                                            const isLong = msg.text.length > 220 || msg.text.split("\n").length > 6;
+                                            const isExpanded = expandedMessages[idx] ?? false;
+                                            return (
+                                                <div className={`max-w-[85%] flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                                                    <div
+                                                        className={`w-full text-sm rounded-2xl px-4 py-2 whitespace-pre-wrap ${!isExpanded && isLong ? "max-h-32 overflow-hidden" : ""} ${msg.role === "user"
+                                                            ? "bg-blue-600 text-white rounded-br-sm"
+                                                            : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                                                            }`}
+                                                    >
+                                                        {msg.text}
+                                                    </div>
 
-                                        </div>
+                                                    {isLong && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setExpandedMessages((prev) => ({
+                                                                    ...prev,
+                                                                    [idx]: !isExpanded,
+                                                                }))
+                                                            }
+                                                            className={`mt-1 text-xs ${msg.role === "user"
+                                                                ? "text-blue-100 hover:text-white"
+                                                                : "text-muted-foreground hover:text-foreground"
+                                                                }`}
+                                                        >
+                                                            {isExpanded ? "折りたたむ" : "続きを読む"}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 ))}
 
