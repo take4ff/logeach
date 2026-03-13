@@ -18,13 +18,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    // SSR後に localStorage / システム設定から初期テーマを決定
+    // SSR後に localStorage から初期テーマを決定（未保存時はライト）
     const saved = localStorage.getItem("theme") as Theme | null;
-    const initial =
-      saved ??
-      (window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light");
+    const initial = saved ?? "light";
     setTheme(initial);
     document.documentElement.classList.toggle("dark", initial === "dark");
   }, []);
