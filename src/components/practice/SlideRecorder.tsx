@@ -27,9 +27,14 @@ export default function SlideRecorder({
     const [pageElapsed, setPageElapsed] = useState(0);
     const [slideAudios, setSlideAudios] = useState<{ page: number; blob: Blob; imageBase64?: string }[]>([]);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [audioLevel, setAudioLevel] = useState(0);
 
     const mediaStreamRef = useRef<MediaStream | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const analyserRef = useRef<AnalyserNode | null>(null);
+    const meterRafRef = useRef<number | null>(null);
+    const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     // 現在「録音中」のページ番号を追跡する ref
@@ -111,6 +116,63 @@ export default function SlideRecorder({
         mediaRecorderRef.current = mr;
     }, []);
 
+    // 録音中の音量メータ開始
+    const startAudioMeter = useCallback((stream: MediaStream) => {
+        const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AudioContextClass) return;
+
+        const audioContext = new AudioContextClass();
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = 0.65;
+
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+
+        audioContextRef.current = audioContext;
+        analyserRef.current = analyser;
+        sourceNodeRef.current = source;
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const tick = () => {
+            if (!analyserRef.current) return;
+            analyserRef.current.getByteTimeDomainData(dataArray);
+
+            let sumSquares = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                const normalized = (dataArray[i] - 128) / 128;
+                sumSquares += normalized * normalized;
+            }
+            const rms = Math.sqrt(sumSquares / dataArray.length);
+
+            // 感度を上げるため、ノイズフロア除去 + 非線形スケーリング
+            const noiseFloor = 0.01;
+            const calibrated = Math.max(0, rms - noiseFloor);
+            const normalizedLevel = Math.min(1, calibrated / 0.15);
+            const level = Math.round(Math.pow(normalizedLevel, 0.65) * 100);
+            setAudioLevel(level);
+            meterRafRef.current = requestAnimationFrame(tick);
+        };
+
+        tick();
+    }, []);
+
+    // 音量メータ停止
+    const stopAudioMeter = useCallback(() => {
+        if (meterRafRef.current !== null) {
+            cancelAnimationFrame(meterRafRef.current);
+            meterRafRef.current = null;
+        }
+        sourceNodeRef.current?.disconnect();
+        sourceNodeRef.current = null;
+        analyserRef.current = null;
+        if (audioContextRef.current) {
+            audioContextRef.current.close().catch(() => { });
+            audioContextRef.current = null;
+        }
+        setAudioLevel(0);
+    }, []);
+
     // 「録音開始」クリック
     const handleStart = useCallback(async () => {
         setErrorMsg(null);
@@ -119,12 +181,13 @@ export default function SlideRecorder({
             mediaStreamRef.current = stream;
             recordingPageRef.current = currentPage; // 録音開始時のページを記録
             startNewRecording(stream);
+            startAudioMeter(stream);
             setRecordingState("recording");
             startTimer();
         } catch {
             setErrorMsg("マイクへのアクセスが拒否されました。ブラウザの設定を確認してください。");
         }
-    }, [currentPage, startNewRecording, startTimer]);
+    }, [currentPage, startNewRecording, startAudioMeter, startTimer]);
 
     // 「録音終了」クリック
     const handleStop = useCallback(() => {
@@ -132,6 +195,7 @@ export default function SlideRecorder({
         const page = recordingPageRef.current; // 現在録音中だったページ
         const mr = mediaRecorderRef.current;
         if (!mr || mr.state === "inactive") {
+            stopAudioMeter();
             setRecordingState("done");
             return;
         }
@@ -151,10 +215,11 @@ export default function SlideRecorder({
             mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
             mediaStreamRef.current = null;
             mediaRecorderRef.current = null;
+            stopAudioMeter();
             setRecordingState("done");
         };
         mr.stop();
-    }, [stopTimer]);
+    }, [stopAudioMeter, stopTimer]);
 
     // 「やり直し」クリック: 現在ページの録音データを破棄して再録音
     const handleRetry = useCallback(() => {
@@ -207,9 +272,10 @@ export default function SlideRecorder({
     useEffect(() => {
         return () => {
             stopTimer();
+            stopAudioMeter();
             mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
         };
-    }, [stopTimer]);
+    }, [stopAudioMeter, stopTimer]);
 
     // ---- UI ----
     return (
@@ -245,6 +311,16 @@ export default function SlideRecorder({
                             スライド {currentPage}
                             {totalPages > 0 ? `/${totalPages}` : ""}
                         </span>
+                    </div>
+                    {/* 音量メータ */}
+                    <div className="space-y-1">
+                        <div className="h-2 w-full rounded bg-gray-800 overflow-hidden border border-gray-700">
+                            <div
+                                className="h-full bg-green-500 transition-all duration-75"
+                                style={{ width: `${audioLevel}%` }}
+                            />
+                        </div>
+                        <p className="text-[11px] text-gray-400">マイク入力レベル</p>
                     </div>
                     {/* タイマー + ボタン群 */}
                     <div className="flex items-center justify-between gap-3">
