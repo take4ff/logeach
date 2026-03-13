@@ -149,6 +149,13 @@ export default function HomePage() {
     e.stopPropagation();
     if (!confirm("このセッションを削除しますか？削除したデータは元に戻せません。")) return;
     try {
+      // 外部キー制約のため、先に関連する chat_logs を削除する
+      const { error: logsError } = await supabase
+        .from("chat_logs")
+        .delete()
+        .eq("session_id", sessionId);
+      if (logsError) throw logsError;
+
       const { error } = await supabase
         .from("sessions")
         .delete()
