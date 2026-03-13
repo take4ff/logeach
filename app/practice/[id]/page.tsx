@@ -22,6 +22,7 @@ import FeedbackModal from "@/src/components/practice/FeedbackModal";
 import { supabase } from "@/src/lib/supabase";
 import Logo from "@/src/components/common/Logo";
 import type { PersonaData } from "@/app/api/chat/route";
+import { Users, Sliders, BookOpen, ChevronLeft } from "lucide-react";
 
 export default function PracticePage({
     params,
@@ -201,18 +202,22 @@ export default function PracticePage({
     }, []);
 
     return (
-        <div className="h-screen flex flex-col">
+        <div className="h-screen flex flex-col bg-[#f5f7fa]">
             {/* チュートリアル（セッション初回のみ） */}
             {isTutorialOpen && (
                 <TutorialOverlay onClose={() => setIsTutorialOpen(false)} />
             )}
             {/* ヘッダー */}
-            <header className="bg-white border-b border-border px-4 py-2 flex items-center justify-between">
-                <Link href="/" className="text-sm text-foreground-muted hover:text-foreground">
-                    ← 戻る
+            <header className="bg-white border-b border-border px-4 py-2 flex items-center justify-between shadow-sm z-10">
+                <Link
+                    href="/"
+                    className="flex items-center gap-1 text-sm text-foreground-muted hover:text-primary transition-colors rounded-lg px-2 py-1 hover:bg-primary-bg"
+                >
+                    <ChevronLeft size={16} />
+                    <span>戻る</span>
                 </Link>
                 <Logo size="small" withLink={false} />
-                <div className="w-16" />
+                <div className="w-20" />
             </header>
 
             {/* メインコンテンツ */}
@@ -220,7 +225,7 @@ export default function PracticePage({
                 {/* 左カラム */}
                 <div className="flex-1 flex flex-col border-r border-border">
                     {/* 左上: スライド */}
-                    <div className="flex-1 border-b border-border">
+                    <div className="flex-1 border-b border-gray-800">
                         <SlideViewer
                             sessionId={id}
                             onPageChange={setCurrentPage}
@@ -238,7 +243,7 @@ export default function PracticePage({
                         />
                     </div>
                     {/* 左下: AIに反論 */}
-                    <div className="p-4 bg-white">
+                    <div className="p-4 bg-white border-t border-border">
                         <label className="block text-sm font-medium mb-2">AIに反論</label>
                         <ChatInterface
                             sessionId={id}
@@ -252,42 +257,54 @@ export default function PracticePage({
                 </div>
 
                 {/* 右カラム: AIコメント + 設定 */}
-                <div className="w-[260px] sm:w-[300px] md:w-[360px] lg:w-[420px] flex flex-col bg-white">
-                    {/* 右カラム: アバター表示 */}
-                    <div className="border-b border-border bg-gray-50/30">
+                <div className="w-[260px] sm:w-[300px] md:w-[360px] lg:w-[420px] flex flex-col bg-white shadow-[-2px_0_8px_rgba(0,0,0,0.04)]">
+                    {/* アバター表示 */}
+                    <div className="border-b border-border bg-gray-50">
                         <CharacterAvatar emotion={currentEmotion} sessionId={id} />
                     </div>
-                    {/* AIコメント表示エリア（スクロール） */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+
+                    {/* チャット表示エリア */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
                         {historyLoading ? (
-                            <p className="text-foreground-muted text-sm">履歴を読み込み中...</p>
+                            <div className="flex items-center justify-center py-8 gap-2">
+                                <span className="typing-dot w-2 h-2 rounded-full bg-foreground-muted inline-block" />
+                                <span className="typing-dot w-2 h-2 rounded-full bg-foreground-muted inline-block" />
+                                <span className="typing-dot w-2 h-2 rounded-full bg-foreground-muted inline-block" />
+                            </div>
                         ) : messages.length === 0 && streamingText === null ? (
-                            <p className="text-foreground-muted text-sm">
-                                AIのコメントがここに表示されます
-                            </p>
+                            <div className="flex flex-col items-center justify-center h-full py-10 gap-3 text-center">
+                                <div className="w-12 h-12 rounded-full bg-primary-bg flex items-center justify-center text-2xl">
+                                    💬
+                                </div>
+                                <p className="text-sm text-foreground-muted leading-relaxed">
+                                    録音して発表を始めると<br />AIのコメントがここに届きます
+                                </p>
+                            </div>
                         ) : (
                             <>
                                 {messages.map((msg, idx) => (
                                     <div
                                         key={idx}
-                                        className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                                        className={`flex animate-fade-in ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                                     >
                                         {(() => {
                                             const isLong = msg.text.length > 220 || msg.text.split("\n").length > 6;
                                             const isExpanded = expandedMessages[idx] ?? false;
                                             return (
-                                                <div className={`max-w-[85%] flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                                                <div className={`max-w-[88%] flex flex-col gap-1 ${msg.role === "user" ? "items-end" : "items-start"}`}>
                                                     <div
-                                                        className={`max-w-[85%] w-full text-sm rounded-2xl px-4 py-2 whitespace-pre-wrap ${!isExpanded && isLong ? "max-h-32 overflow-hidden" : ""} ${msg.role === "user"
-                                                            ? "bg-blue-600 text-white rounded-br-sm"
-                                                            : "bg-gray-100 text-gray-800 rounded-bl-sm"
-                                                            }`}
+                                                        className={`w-full text-sm px-4 py-2.5 ${
+                                                            !isExpanded && isLong ? "max-h-32 overflow-hidden" : ""
+                                                        } ${
+                                                            msg.role === "user"
+                                                                ? "bg-primary text-white rounded-2xl rounded-br-sm shadow-sm"
+                                                                : "bg-[#eef2f7] text-foreground rounded-2xl rounded-bl-sm shadow-sm"
+                                                        }`}
                                                     >
                                                         <div className="markdown-content">
                                                             <ReactMarkdown>{msg.text}</ReactMarkdown>
                                                         </div>
                                                     </div>
-
                                                     {isLong && (
                                                         <button
                                                             type="button"
@@ -297,12 +314,13 @@ export default function PracticePage({
                                                                     [idx]: !isExpanded,
                                                                 }))
                                                             }
-                                                            className={`mt-1 text-xs ${msg.role === "user"
-                                                                ? "text-blue-100 hover:text-white"
-                                                                : "text-muted-foreground hover:text-foreground"
-                                                                }`}
+                                                            className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+                                                                msg.role === "user"
+                                                                    ? "text-primary-light hover:bg-primary-bg"
+                                                                    : "text-foreground-muted hover:bg-[#eef2f7]"
+                                                            }`}
                                                         >
-                                                            {isExpanded ? "折りたたむ" : "続きを読む"}
+                                                            {isExpanded ? "▲ 折りたたむ" : "▼ 続きを読む"}
                                                         </button>
                                                     )}
                                                 </div>
@@ -311,50 +329,68 @@ export default function PracticePage({
                                     </div>
                                 ))}
 
-                                {/* ストリーミング中のアシスタントメッセージ */}
+                                {/* ストリーミング中: タイピングアニメーション or テキスト */}
                                 {streamingText !== null && (
-                                    <div className="flex justify-start">
-                                        <div className="max-w-[85%] bg-gray-100 text-gray-800 text-sm rounded-2xl rounded-bl-sm px-4 py-2 whitespace-pre-wrap">
-                                            {streamingText}
+                                    <div className="flex justify-start animate-fade-in">
+                                        <div className="max-w-[88%] bg-[#eef2f7] text-foreground text-sm rounded-2xl rounded-bl-sm px-4 py-2.5 shadow-sm">
+                                            {streamingText === "考え中..." ? (
+                                                <span className="flex items-center gap-1.5 py-0.5">
+                                                    <span className="typing-dot w-2 h-2 rounded-full bg-foreground-secondary inline-block" />
+                                                    <span className="typing-dot w-2 h-2 rounded-full bg-foreground-secondary inline-block" />
+                                                    <span className="typing-dot w-2 h-2 rounded-full bg-foreground-secondary inline-block" />
+                                                </span>
+                                            ) : (
+                                                <div className="markdown-content">
+                                                    <ReactMarkdown>{streamingText}</ReactMarkdown>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
-
                                 <div ref={bottomRef} />
                             </>
                         )}
                     </div>
-                    <div className="border-t border-border p-4 space-y-3">
+
+                    {/* 右カラム下部: ペルソナ情報 + 操作ボタン */}
+                    <div className="border-t border-border bg-[#f8fafc] p-3 space-y-2">
                         {/* 現在のペルソナ表示 */}
-                        {currentPersona && (
-                            <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 flex items-center gap-2">
-                                <span className="text-base">👤</span>
-                                <div className="min-w-0">
-                                    <p className="font-medium text-foreground truncate">{currentPersona.name}</p>
+                        {currentPersona ? (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-primary-bg rounded-lg border border-[#b8d4e8]">
+                                <span className="text-lg leading-none">👤</span>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-semibold text-primary truncate">{currentPersona.name}</p>
                                     {currentPersona.landmines && (
-                                        <p className="truncate">地雷: {currentPersona.landmines}</p>
+                                        <p className="text-[11px] text-primary-dark/70 truncate">地雷: {currentPersona.landmines}</p>
                                     )}
                                 </div>
                             </div>
+                        ) : (
+                            <p className="text-xs text-center text-foreground-muted py-1">ペルソナ未設定</p>
                         )}
-                        <button
-                            onClick={() => setIsPersonaSelectorOpen(true)}
-                            className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg px-4 py-2 text-sm font-medium transition-colors border border-border"
-                        >
-                            ペルソナを選択
-                        </button>
-                        <button
-                            onClick={() => setIsPersonaModalOpen(true)}
-                            className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg px-4 py-2 text-sm font-medium transition-colors border border-border"
-                        >
-                            AIの人物像をカスタマイズ
-                        </button>
-                        <button
-                            onClick={() => setIsKnowledgeModalOpen(true)}
-                            className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg px-4 py-2 text-sm font-medium transition-colors border border-border"
-                        >
-                            前提知識をアップロード
-                        </button>
+                        <div className="grid grid-cols-3 gap-1.5">
+                            <button
+                                onClick={() => setIsPersonaSelectorOpen(true)}
+                                className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-white border border-border hover:border-primary/40 hover:bg-primary-bg text-foreground-secondary hover:text-primary transition-all text-center"
+                            >
+                                <Users size={16} />
+                                <span className="text-[11px] font-medium leading-tight">ペルソナ<br/>選択</span>
+                            </button>
+                            <button
+                                onClick={() => setIsPersonaModalOpen(true)}
+                                className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-white border border-border hover:border-primary/40 hover:bg-primary-bg text-foreground-secondary hover:text-primary transition-all text-center"
+                            >
+                                <Sliders size={16} />
+                                <span className="text-[11px] font-medium leading-tight">人物像<br/>設定</span>
+                            </button>
+                            <button
+                                onClick={() => setIsKnowledgeModalOpen(true)}
+                                className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-white border border-border hover:border-primary/40 hover:bg-primary-bg text-foreground-secondary hover:text-primary transition-all text-center"
+                            >
+                                <BookOpen size={16} />
+                                <span className="text-[11px] font-medium leading-tight">前提<br/>知識</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

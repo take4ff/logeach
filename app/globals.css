@@ -200,3 +200,71 @@ body {
 .animate-floating {
   animation: floating 2s ease-in-out infinite;
 }
+
+/* ==========================================
+   Markdown レンダリング（チャットバブル内）
+   ========================================== */
+
+.markdown-content > * + * {
+  margin-top: 0.4em;
+}
+
+.markdown-content p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.markdown-content p + p {
+  margin-top: 0.4em;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  font-weight: 700;
+  margin-top: 0.75em;
+  margin-bottom: 0.25em;
+  line-height: 1.3;
+}
+
+.markdown-content h1 { font-size: 1rem; }
+.markdown-content h2 { font-size: 0.95rem; }
+.markdown-content h3 { font-size: 0.875rem; }
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 1.25em;
+  margin: 0.3em 0;
+}
+
+.markdown-content li {
+  margin: 0.15em 0;
+  line-height: 1.5;
+}
+
+.markdown-content hr {
+  border: none;
+  border-top: 1px solid currentColor;
+  opacity: 0.2;
+  margin: 0.6em 0;
+}
+
+.markdown-content code {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  background: rgba(0,0,0,0.08);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid currentColor;
+  opacity: 0.85;
+  padding-left: 0.75em;
+  margin: 0.4em 0;
+  font-style: italic;
+}
