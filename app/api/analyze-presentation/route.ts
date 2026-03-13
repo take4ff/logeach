@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
+import { saveMessage } from '@/src/lib/messages';
 
 // App Router のルートセグメント設定: 大きな音声ファイルのアップロードに対応
 export const maxDuration = 60; // タイムアウトを 60 秒に延長
@@ -235,6 +236,8 @@ iii. 改善すべき点（具体的に1〜2つ）
                 { status: 500 }
             );
         }
+
+        await saveMessage(sessionId, 'assistant', feedback);
 
         return Response.json({
             feedback,
