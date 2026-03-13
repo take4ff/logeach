@@ -20,6 +20,12 @@ function normalizeEmotion(raw: string): Emotion {
         : 'neutral';
 }
 
+/** テキストから "emotion: <感情名>" の行を削除する */
+function cleanAssistantText(text: string): string {
+    // 正規表現で "emotion: 感情名" の行（前後改行含む）を空文字に置換
+    return text.replace(/emotion:\s*.+$/m, '').trim();
+}
+
 function buildSystemPrompt(personaData?: PersonaData): string {
     if (!personaData || !personaData.name) {
         return [
@@ -120,7 +126,8 @@ export async function POST(req: Request) {
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ emotion })}\n\n`));
 
                         if (sessionId) {
-                            await saveMessage(sessionId, 'assistant', fullText, emotion);
+                            const cleanText = cleanAssistantText(fullText); // 感情行をカット
+                            await saveMessage(sessionId, 'assistant', cleanText, emotion);
                         }
 
                         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
@@ -215,7 +222,8 @@ export async function POST(req: Request) {
 
                     // AIの応答をDBに保存
                     if (sessionId) {
-                        await saveMessage(sessionId, 'assistant', fullText, emotion);
+                        const cleanText = cleanAssistantText(fullText); // 感情行をカット
+                        await saveMessage(sessionId, 'assistant', cleanText, emotion);
                     }
 
                     controller.enqueue(encoder.encode('data: [DONE]\n\n'));

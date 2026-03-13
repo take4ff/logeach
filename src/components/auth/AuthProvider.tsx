@@ -36,7 +36,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         // 現在のセッションを取得
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabase.auth.getSession().then(({ data: { session }, error }) => {
+            if (error) {
+                // リフレッシュトークンが無効な場合はストレージをクリアしてサインアウト
+                console.warn("getSession error:", error.message);
+                supabase.auth.signOut();
+                setUser(null);
+                setSession(null);
+                setLoading(false);
+                return;
+            }
             setSession(session);
             if (session?.user) {
                 setUser({
@@ -53,7 +62,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // 認証状態の変更を監視
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
+        } = supabase.auth.onAuthStateChange((event, session) => {
+            // トークンリフレッシュ失敗時もサインアウト扱いにする
+            if (event === "SIGNED_OUT" || event === "TOKEN_REFRESHED" && !session) {
+                setUser(null);
+                setSession(null);
+                setLoading(false);
+                return;
+            }
             setSession(session);
             if (session?.user) {
                 setUser({

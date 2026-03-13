@@ -2,7 +2,6 @@
 
 import { use, useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
-import ReactMarkdown from "react-markdown";
 import dynamic from "next/dynamic";
 const SlideViewer = dynamic(
     () => import("@/src/components/practice/SlideViewer"),
@@ -18,6 +17,7 @@ import PersonaSelector from "@/src/components/setup/PersonaSelector";
 import KnowledgeUpload from "@/src/components/setup/KnowledgeUpload";
 import CharacterAvatar, { EmotionType } from "@/src/components/practice/CharacterAvatar";
 import TutorialOverlay from "@/src/components/practice/TutorialOverlay";
+import FeedbackModal from "@/src/components/practice/FeedbackModal";
 import { supabase } from "@/src/lib/supabase";
 import Logo from "@/src/components/common/Logo";
 import type { PersonaData } from "@/app/api/chat/route";
@@ -77,7 +77,12 @@ export default function PracticePage({
                 }
 
                 const data = await res.json();
-                setFeedbackResult(data.feedback ?? 'フィードバックを取得できませんでした。');
+                const feedbackText = data.feedback ?? 'フィードバックを取得できませんでした。';
+                setFeedbackResult(feedbackText);
+                setMessages((prev) => [
+                    ...prev,
+                    { role: "assistant" as const, text: feedbackText },
+                ]);
             } catch (err: unknown) {
                 const msg = err instanceof Error ? err.message : '不明なエラー';
                 setFeedbackError(`フィードバックの取得に失敗しました: ${msg}`);
@@ -90,6 +95,7 @@ export default function PracticePage({
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [streamingText, setStreamingText] = useState<string | null>(null);
+    const [expandedMessages, setExpandedMessages] = useState<Record<number, boolean>>({});
     const [historyLoading, setHistoryLoading] = useState(true);
     const [currentPersona, setCurrentPersona] = useState<PersonaData | null>(null);
     const [sessionPersonaId, setSessionPersonaId] = useState<string | null>(null);
@@ -265,16 +271,42 @@ export default function PracticePage({
                                         key={idx}
                                         className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                                     >
-                                        <div
-                                            className={`max-w-[85%] text-sm rounded-2xl px-4 py-2 whitespace-pre-wrap ${msg.role === "user"
-                                                ? "bg-blue-600 text-white rounded-br-sm"
-                                                : "bg-gray-100 text-gray-800 rounded-bl-sm"
-                                                }`}
-                                        >
-                                            <div className="markdown-content">
-                                                <ReactMarkdown>{msg.text}</ReactMarkdown>
-                                            </div>
-                                        </div>
+                                        {(() => {
+                                            const isLong = msg.text.length > 220 || msg.text.split("\n").length > 6;
+                                            const isExpanded = expandedMessages[idx] ?? false;
+                                            return (
+                                                <div className={`max-w-[85%] flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                                                    <div
+                                                        className={`max-w-[85%] w-full text-sm rounded-2xl px-4 py-2 whitespace-pre-wrap ${!isExpanded && isLong ? "max-h-32 overflow-hidden" : ""} ${msg.role === "user"
+                                                            ? "bg-blue-600 text-white rounded-br-sm"
+                                                            : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                                                            }`}
+                                                    >
+                                                        <div className="markdown-content">
+                                                            <ReactMarkdown>{msg.text}</ReactMarkdown>
+                                                        </div>
+                                                    </div>
+
+                                                    {isLong && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setExpandedMessages((prev) => ({
+                                                                    ...prev,
+                                                                    [idx]: !isExpanded,
+                                                                }))
+                                                            }
+                                                            className={`mt-1 text-xs ${msg.role === "user"
+                                                                ? "text-blue-100 hover:text-white"
+                                                                : "text-muted-foreground hover:text-foreground"
+                                                                }`}
+                                                        >
+                                                            {isExpanded ? "折りたたむ" : "続きを読む"}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 ))}
 
@@ -424,59 +456,13 @@ export default function PracticePage({
             )}
 
             {/* フィードバックモーダル */}
-            {isFeedbackModalOpen && (
-                <div
-                    className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 sm:p-6 overflow-y-auto"
-                    onClick={() => { if (!isFeedbackLoading) setIsFeedbackModalOpen(false); }}
-                >
-                    <div
-                        className="bg-background rounded-xl shadow-lg w-full max-w-2xl p-6 my-auto"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <h2 className="text-xl font-bold mb-4">AIフィードバック</h2>
-
-                        {isFeedbackLoading && (
-                            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
-                                <span className="animate-spin text-3xl">⏳</span>
-                                <p className="text-sm">音声を文字起こして分析中です。しばらくお待ちください…</p>
-                            </div>
-                        )}
-
-                        {feedbackError && (
-                            <p className="text-red-500 text-sm whitespace-pre-wrap">{feedbackError}</p>
-                        )}
-
-                        {feedbackResult && (
-                            <div className="text-sm text-foreground leading-relaxed max-h-[60vh] overflow-y-auto border border-border rounded-lg p-4 bg-muted/30 prose prose-sm max-w-none">
-                                <ReactMarkdown
-                                    components={{
-                                        h3: ({ children }) => <h3 className="text-base font-bold mt-4 mb-1">{children}</h3>,
-                                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                                        hr: () => <hr className="my-3 border-border" />,
-                                        p: ({ children }) => <p className="mb-2">{children}</p>,
-                                        ul: ({ children }) => <ul className="list-disc pl-5 space-y-1">{children}</ul>,
-                                        li: ({ children }) => <li>{children}</li>,
-                                    }}
-                                >
-                                    {feedbackResult}
-                                </ReactMarkdown>
-                            </div>
-                        )}
-
-                        {!isFeedbackLoading && (
-                            <div className="mt-6 flex justify-end">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsFeedbackModalOpen(false)}
-                                    className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted"
-                                >
-                                    閉じる
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+            <FeedbackModal
+                isOpen={isFeedbackModalOpen}
+                onClose={() => setIsFeedbackModalOpen(false)}
+                isLoading={isFeedbackLoading}
+                feedback={feedbackResult}
+                error={feedbackError}
+            />
         </div>
     );
 }
