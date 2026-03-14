@@ -1,5 +1,8 @@
 "use client";
 
+export const runtime = 'edge';
+
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/src/lib/supabase";
@@ -61,22 +64,20 @@ export default function LoginPage() {
                     <button
                         type="button"
                         onClick={() => { setMode("login"); setError(null); }}
-                        className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                            mode === "login"
+                        className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "login"
                                 ? "bg-primary text-white"
                                 : "hover:bg-muted text-black"
-                        }`}
+                            }`}
                     >
                         ログイン
                     </button>
                     <button
                         type="button"
                         onClick={() => { setMode("signup"); setError(null); }}
-                        className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                            mode === "signup"
+                        className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "signup"
                                 ? "bg-primary text-white"
                                 : "hover:bg-muted text-black"
-                        }`}
+                            }`}
                     >
                         アカウント作成
                     </button>

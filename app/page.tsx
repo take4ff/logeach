@@ -1,5 +1,8 @@
 "use client";
 
+export const runtime = 'edge';
+
+
 /**
  * ホーム画面
  * セッション一覧と新規作成機能を提供
@@ -393,11 +396,10 @@ export default function HomePage() {
                   {(["gemini", "qwen"] as const).map((model) => (
                     <label
                       key={model}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-medium cursor-pointer transition-all ${
-                        preferredModel === model
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-medium cursor-pointer transition-all ${preferredModel === model
                           ? "border-primary bg-primary-bg text-primary"
                           : "border-border text-foreground-secondary hover:border-primary/40"
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"

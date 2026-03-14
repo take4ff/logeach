@@ -1,5 +1,8 @@
 "use client";
 
+export const runtime = 'edge';
+
+
 import { use, useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -304,13 +307,11 @@ export default function PracticePage({
                                             return (
                                                 <div className={`max-w-[88%] flex flex-col gap-1 ${msg.role === "user" ? "items-end" : "items-start"}`}>
                                                     <div
-                                                        className={`w-full text-sm px-4 py-2.5 ${
-                                                            !isExpanded && isLong ? "max-h-32 overflow-hidden" : ""
-                                                        } ${
-                                                            msg.role === "user"
+                                                        className={`w-full text-sm px-4 py-2.5 ${!isExpanded && isLong ? "max-h-32 overflow-hidden" : ""
+                                                            } ${msg.role === "user"
                                                                 ? "bg-primary text-white rounded-2xl rounded-br-sm shadow-sm"
                                                                 : "bg-surface-hover text-foreground rounded-2xl rounded-bl-sm shadow-sm"
-                                                        }`}
+                                                            }`}
                                                     >
                                                         <div className="markdown-content">
                                                             <ReactMarkdown>{msg.text}</ReactMarkdown>
@@ -325,11 +326,10 @@ export default function PracticePage({
                                                                     [idx]: !isExpanded,
                                                                 }))
                                                             }
-                                                            className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
-                                                                msg.role === "user"
+                                                            className={`text-xs px-2 py-0.5 rounded-full transition-colors ${msg.role === "user"
                                                                     ? "text-primary-light hover:bg-primary-bg"
                                                                     : "text-foreground-muted hover:bg-surface-hover"
-                                                            }`}
+                                                                }`}
                                                         >
                                                             {isExpanded ? "▲ 折りたたむ" : "▼ 続きを読む"}
                                                         </button>
@@ -385,21 +385,21 @@ export default function PracticePage({
                                 className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-surface border border-border hover:border-primary/40 hover:bg-primary-bg text-foreground-secondary hover:text-primary transition-all text-center"
                             >
                                 <Users size={16} />
-                                <span className="text-[11px] font-medium leading-tight">ペルソナ<br/>選択</span>
+                                <span className="text-[11px] font-medium leading-tight">ペルソナ<br />選択</span>
                             </button>
                             <button
                                 onClick={() => setIsPersonaModalOpen(true)}
                                 className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-surface border border-border hover:border-primary/40 hover:bg-primary-bg text-foreground-secondary hover:text-primary transition-all text-center"
                             >
                                 <Sliders size={16} />
-                                <span className="text-[11px] font-medium leading-tight">人物像<br/>設定</span>
+                                <span className="text-[11px] font-medium leading-tight">人物像<br />設定</span>
                             </button>
                             <button
                                 onClick={() => setIsKnowledgeModalOpen(true)}
                                 className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg bg-surface border border-border hover:border-primary/40 hover:bg-primary-bg text-foreground-secondary hover:text-primary transition-all text-center"
                             >
                                 <BookOpen size={16} />
-                                <span className="text-[11px] font-medium leading-tight">前提<br/>知識</span>
+                                <span className="text-[11px] font-medium leading-tight">前提<br />知識</span>
                             </button>
                         </div>
                     </div>
