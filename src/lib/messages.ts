@@ -6,10 +6,12 @@ import type { Message } from "@/src/components/practice/ChatInterface";
  * サービスロールキーがあればそちらを使い、なければ anonキーで代替する。
  */
 function getServerClient() {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    // ビルドエラー防止のため、環境変数がない場合はダミーの文字列を使用する
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
     const key =
         process.env.SUPABASE_SERVICE_ROLE_KEY ??
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+        "placeholder-key";
     return createClient(url, key);
 }
 

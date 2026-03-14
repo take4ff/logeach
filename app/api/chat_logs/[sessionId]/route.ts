@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { fetchMessages } from "@/src/lib/messages";
 
+export const runtime = 'edge';
+
 export async function GET(
     _req: Request,
     { params }: { params: Promise<{ sessionId: string }> }

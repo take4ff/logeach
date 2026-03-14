@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { saveMessage } from '@/src/lib/messages';
 
 // App Router のルートセグメント設定: 大きな音声ファイルのアップロードに対応
+export const runtime = 'edge';
 export const maxDuration = 60; // タイムアウトを 60 秒に延長
 
 export async function POST(req: Request) {
@@ -54,10 +55,22 @@ export async function POST(req: Request) {
         const transcriptions: { page: number; text: string }[] = [];
 
         // API クライアントの初期化
-        const geminiClient = modelProvider === 'gemini' ? new GoogleGenAI({ apiKey }) : null;
+        const geminiBaseUrl = process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_GATEWAY_ID
+            ? `https://gateway.ai.cloudflare.com/v1/${process.env.CLOUDFLARE_ACCOUNT_ID}/${process.env.CLOUDFLARE_GATEWAY_ID}/google-ai-studio/v1`
+            : undefined;
+
+        const geminiClient = modelProvider === 'gemini' ? new GoogleGenAI({ 
+            apiKey,
+            httpOptions: geminiBaseUrl ? { baseUrl: geminiBaseUrl } : undefined
+        }) : null;
+
+        const qwenBaseUrl = process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_GATEWAY_ID
+            ? `https://gateway.ai.cloudflare.com/v1/${process.env.CLOUDFLARE_ACCOUNT_ID}/${process.env.CLOUDFLARE_GATEWAY_ID}/openai`
+            : 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+
         const qwenClient = modelProvider === 'qwen' ? new OpenAI({
             apiKey,
-            baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+            baseURL: qwenBaseUrl,
         }) : null;
 
         for (const { page, blob } of audioEntries) {
