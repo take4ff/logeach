@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "pages:build": "npx @opennextjs/cloudflare@latest build",
+    "pages:deploy": "npx wrangler pages deploy .open-next/cloudflare"
   },
   "dependencies": {
     "@google/genai": "^1.44.0",
