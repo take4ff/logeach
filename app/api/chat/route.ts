@@ -11,6 +11,8 @@ export interface PersonaData {
 
 const ALLOWED_EMOTIONS = ['neutral', 'thinking', 'satisfied', 'skeptical', 'angry', 'impressed'] as const;
 type Emotion = typeof ALLOWED_EMOTIONS[number];
+const SUMMARY_PREFIX = '【これまでの会話概要（100字）】';
+const SUMMARY_INTERVAL = 10;
 
 function normalizeEmotion(raw: string): Emotion {
     const lower = raw.toLowerCase().trim();
@@ -21,6 +23,10 @@ function normalizeEmotion(raw: string): Emotion {
 
 function cleanAssistantText(text: string): string {
     return text.replace(/emotion:\s*.+$/m, '').trim();
+}
+
+function isSummaryMessage(text: string | undefined): boolean {
+    return !!text?.startsWith(SUMMARY_PREFIX);
 }
 
 function buildSystemPrompt(personaData?: PersonaData): string {
@@ -59,50 +65,56 @@ function buildSummaryText(messages: { role: string; text: string }[]): string {
         .map((m) => (m.role === 'assistant' ? `AI:${m.text}` : `User:${m.text}`))
         .join(' / ');
     const summaryBody = joined.slice(0, 100);
-    return `【これまでの会話概要（100字）】${summaryBody}`;
+    return `${SUMMARY_PREFIX}${summaryBody}`;
 }
 
 /**
- * 履歴から「要約メッセージ + 直近の生メッセージ」を作る
- * - 10件超えていたら先頭側を要約1件に圧縮し、その要約もDBに保存
- * - モデルには「要約1件 + 直近数件」を渡す
+ * 履歴から「要約メッセージ + 要約以降の生メッセージ」を作る
+ * - 最後の要約以降のユーザー発言が10件に達するたび要約を更新
+ * - 次の要約更新までは要約以降の会話をすべてモデルに渡す
  */
 async function buildLogicalHistoryForSession(sessionId: string) {
     const pastMessages = await fetchMessages(sessionId);
 
-    // すでに存在する要約メッセージ（prefixで判定）
-    const existingSummary = pastMessages.find((m: any) =>
-        m.text?.startsWith('【これまでの会話概要（100字）】')
-    );
+    let latestSummaryIndex = -1;
+    for (let i = pastMessages.length - 1; i >= 0; i -= 1) {
+        if (isSummaryMessage(pastMessages[i]?.text)) {
+            latestSummaryIndex = i;
+            break;
+        }
+    }
 
-    // まず通常の履歴（全件）をベースにする
-    let logicalMessages = [...pastMessages];
+    const latestSummary = latestSummaryIndex >= 0 ? pastMessages[latestSummaryIndex] : null;
+    const messagesSinceSummary =
+        latestSummaryIndex >= 0 ? pastMessages.slice(latestSummaryIndex + 1) : [...pastMessages];
+    const rawMessagesSinceSummary = messagesSinceSummary.filter((m) => !isSummaryMessage(m.text));
+    const userTurnsSinceSummary = rawMessagesSinceSummary.filter((m) => m.role === 'user').length;
 
-    if (pastMessages.length > 10 && !existingSummary) {
-        // まだ要約が無い & 10件超えたタイミングで要約を作る
-        const summaryText = buildSummaryText(pastMessages);
+    if (userTurnsSinceSummary >= SUMMARY_INTERVAL) {
+        const summarySource = latestSummary
+            ? ([{ role: 'assistant', text: latestSummary.text }, ...rawMessagesSinceSummary] as {
+                  role: string;
+                  text: string;
+              }[])
+            : rawMessagesSinceSummary;
 
-        // 要約をDBに1メッセージとして保存（roleはassistantにしておく）
+        const summaryText = buildSummaryText(summarySource);
         await saveMessage(sessionId, 'assistant', summaryText);
 
-        // 「論理履歴」としては「要約 + 直近数件」で組み立て直す
-        const recent = pastMessages.slice(-5); // 直近5件はそのまま残すなど適宜
-        logicalMessages = [
+        return [
             {
-                id: 'summary', // 仮ID（fetchMessagesの型に合わせる必要があれば調整）
+                id: 'summary',
                 role: 'assistant',
                 text: summaryText,
             } as any,
-            ...recent,
         ];
-    } else if (existingSummary) {
-        // 既に要約がある場合は、その要約 + 直近の生メッセージだけを使う
-        const summaryIndex = pastMessages.indexOf(existingSummary);
-        const recent = pastMessages.slice(Math.max(summaryIndex + 1, pastMessages.length - 5));
-        logicalMessages = [existingSummary, ...recent];
     }
 
-    return logicalMessages;
+    if (latestSummary) {
+        return [latestSummary, ...rawMessagesSinceSummary];
+    }
+
+    return pastMessages;
 }
 
 export async function POST(req: Request) {
@@ -121,11 +133,6 @@ export async function POST(req: Request) {
             return Response.json({ error: 'message は必須です' }, { status: 400 });
         }
 
-        // ユーザーのメッセージを保存
-        if (sessionId) {
-            await saveMessage(sessionId, 'user', message);
-        }
-
         const systemInstruction = buildSystemPrompt(personaData);
 
         // ---- Qwen (OpenAI互換API) ----
@@ -139,13 +146,15 @@ export async function POST(req: Request) {
             let history: OpenAI.Chat.ChatCompletionMessageParam[] = [];
             if (sessionId) {
                 const logicalMessages = await buildLogicalHistoryForSession(sessionId);
-                const recent = logicalMessages.slice(-15);
-                for (const msg of recent) {
+                for (const msg of logicalMessages) {
                     history.push({
                         role: msg.role === 'assistant' ? 'assistant' : 'user',
                         content: msg.text,
                     });
                 }
+
+                // 履歴取得後に今回のユーザー発言を保存し、重複投入を防ぐ
+                await saveMessage(sessionId, 'user', message);
             }
 
             const qwenMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -215,11 +224,13 @@ export async function POST(req: Request) {
         let historyContents: Content[] = [];
         if (sessionId) {
             const logicalMessages = await buildLogicalHistoryForSession(sessionId);
-            const recentMessages = logicalMessages.slice(-15);
-            historyContents = recentMessages.map((msg: any) => ({
+            historyContents = logicalMessages.map((msg: any) => ({
                 role: msg.role === 'assistant' ? 'model' : 'user',
                 parts: [{ text: msg.text }],
             }));
+
+            // 履歴取得後に今回のユーザー発言を保存し、重複投入を防ぐ
+            await saveMessage(sessionId, 'user', message);
         }
 
         // 今回のメッセージ
