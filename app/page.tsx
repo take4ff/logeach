@@ -1,5 +1,7 @@
 "use client";
 
+export const runtime = 'edge';
+
 /**
  * ホーム画面
  * セッション一覧と新規作成機能を提供
