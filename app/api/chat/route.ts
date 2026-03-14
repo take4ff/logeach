@@ -138,10 +138,15 @@ export async function POST(req: Request) {
         const systemInstruction = buildSystemPrompt(personaData);
 
         // ---- Qwen (OpenAI互換API) ----
+        // ---- Qwen (OpenAI SDK) ----
+        const qwenBaseUrl = process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_GATEWAY_ID
+            ? `https://gateway.ai.cloudflare.com/v1/${process.env.CLOUDFLARE_ACCOUNT_ID}/${process.env.CLOUDFLARE_GATEWAY_ID}/openai`
+            : 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+
         if (modelProvider === 'qwen') {
             const qwenClient = new OpenAI({
-                apiKey,
-                baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+                apiKey: apiKey, // Assuming apiKey from req.json() is used for Qwen
+                baseURL: qwenBaseUrl,
             });
 
             // 要約ロジックを考慮した「論理履歴」を取得
@@ -215,8 +220,14 @@ export async function POST(req: Request) {
         }
 
         // ---- Gemini ----
+        const geminiBaseUrl = process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_GATEWAY_ID
+            ? `https://gateway.ai.cloudflare.com/v1/${process.env.CLOUDFLARE_ACCOUNT_ID}/${process.env.CLOUDFLARE_GATEWAY_ID}/google-ai-studio/v1`
+            : undefined;
 
-        const client = new GoogleGenAI({ apiKey });
+        const client = new GoogleGenAI({ 
+            apiKey,
+            httpOptions: geminiBaseUrl ? { baseUrl: geminiBaseUrl } : undefined
+        });
 
         const slideInstruction = slideUrl
             ? 'ユーザーが添付したスライドの内容を踏まえて反論・コメントしてください。'
