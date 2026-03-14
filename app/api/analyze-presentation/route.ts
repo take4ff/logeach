@@ -10,6 +10,8 @@ export async function POST(req: Request) {
         const formData = await req.formData();
         const sessionId = formData.get('sessionId') as string;
         const slideUrl = formData.get('slideUrl') as string | null;
+        const slideTextRaw = formData.get('slideText') as string | null;
+        const slideText = slideTextRaw ? JSON.parse(slideTextRaw) as string[] : [];
         const modelProvider = (formData.get('modelProvider') as string) || 'gemini';
         let apiKey = '';
 
@@ -83,7 +85,7 @@ export async function POST(req: Request) {
             } else if (modelProvider === 'qwen') {
                 // Qwen Audio Inference (using native DashScope API for qwen-omni-turbo)
                 const dashScopeAudioUrl = 'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
-                
+
                 const qwenAudioResponse = await fetch(dashScopeAudioUrl, {
                     method: 'POST',
                     headers: {
@@ -106,14 +108,14 @@ export async function POST(req: Request) {
                         parameters: {}
                     })
                 });
-                
+
                 if (!qwenAudioResponse.ok) {
                     const errStatus = qwenAudioResponse.status;
                     const errBody = await qwenAudioResponse.text();
                     console.error(`DashScope Audio API Error ${errStatus}:`, errBody);
                     throw new Error(`DashScope Audio API Error: ${errStatus}`);
                 }
-                
+
                 const qwenData = await qwenAudioResponse.json();
                 text = (qwenData.output?.choices?.[0]?.message?.content?.[0]?.text || '').trim();
             }
@@ -134,7 +136,7 @@ export async function POST(req: Request) {
         const qwenMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
 
         // 音声もスライドもない場合はエラー
-        if (transcriptions.length === 0 && !slideUrl) {
+        if (transcriptions.length === 0 && !slideUrl && slideText.length === 0) {
             return Response.json(
                 { error: '音声データもスライドもありません。スライドをアップロードするか、録音してから再試行してください。' },
                 { status: 400 }
@@ -162,7 +164,7 @@ export async function POST(req: Request) {
         let promptText = '';
 
         if (transcriptions.length > 0) {
-            promptText = `以下はスライド発表の録音を文字起こしたものです。${slideUrl ? 'また、発表に使用したスライドPDFも添付します。スライドの内容と照らし合わせながら' : ''}スライドごとに以下の観点で評価してください：
+            promptText = `以下はスライド発表の録音を文字起こしたものです。${slideUrl ? 'また、発表に使用したスライドの内容も（PDFまたはテキストとして）提供します。スライドの内容と照らし合わせながら' : ''}スライドごとに以下の観点で評価してください：
 
 各スライドについて：
 i. 論理構成（主張・根拠・結論の流れ）
@@ -171,9 +173,11 @@ iii. 改善すべき点（具体的に1〜2つ）
 
 最後に総合評価（100点満点）と全体を通じた改善アドバイスを追加してください。日本語で回答してください。
 
-${transcriptions.map((t, i) => `[スライド${i + 1}]\n${t.text}`).join('\n\n')}`;
+${slideText.length > 0 ? `【スライドのテキスト内容】\n${slideText.map((t, i) => `[スライド${i + 1}] ${t}`).join('\n')}\n\n` : ''}
+【文字起こし】
+${transcriptions.map((t) => `[スライド${t.page}]\n${t.text}`).join('\n\n')}`;
         } else {
-            promptText = `添付したスライド資料（PDF）の内容を確認し、スライドごとに以下の観点で評価・アドバイスを行ってください：
+            promptText = `提供されたスライド資料の内容を確認し、スライドごとに以下の観点で評価・アドバイスを行ってください：
 
 各スライドについて：
 i. 論理構成（主張・根拠・結論の流れ）
@@ -182,6 +186,7 @@ iii. 改善すべき点（具体的に1〜2つ）
 
 最後に総合評価（100点満点）と全体を通じた改善アドバイスを追加してください。日本語で回答してください。
 
+${slideText.length > 0 ? `【スライドのテキスト内容】\n${slideText.map((t, i) => `[スライド${i + 1}] ${t}`).join('\n')}\n\n` : ''}
 ※ 今回は音声録音がなかったため、スライドの記載内容のみに基づいて評価してください。`;
         }
 
@@ -204,7 +209,7 @@ iii. 改善すべき点（具体的に1〜2つ）
                         contentBlocks.push({ type: 'image_url', image_url: { url: base64 } });
                     }
                 }
-                
+
                 contentBlocks.push({ type: 'text', text: promptText });
 
                 const qwenMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -228,7 +233,7 @@ iii. 改善すべき点（具体的に1〜2つ）
                 console.error('Unknown Error:', error);
             }
         }
-        
+
         if (!feedback) {
             console.error('[analyze-presentation] Gemini が空のレスポンスを返しました (Safety Filter等)');
             return Response.json(
