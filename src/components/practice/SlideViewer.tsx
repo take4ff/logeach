@@ -21,6 +21,8 @@ interface SlideViewerProps {
     onNumPagesReady?: (totalPages: number) => void;
     /** PDF の公開 URL が確定したときに呼ばれるコールバック */
     onPdfUrlReady?: (url: string) => void;
+    /** PDF のテキスト内容が確定したときに呼ばれるコールバック */
+    onTextReady?: (text: string[]) => void;
 }
 
 export default function SlideViewer({
@@ -28,6 +30,7 @@ export default function SlideViewer({
     onPageChange,
     onNumPagesReady,
     onPdfUrlReady,
+    onTextReady,
 }: SlideViewerProps) {
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [pdfFileName, setPdfFileName] = useState<string | null>(null);
@@ -221,10 +224,26 @@ export default function SlideViewer({
             <div ref={pdfViewportRef} className="flex-1 overflow-auto flex items-center justify-center p-2">
                 <Document
                     file={pdfUrl}
-                    onLoadSuccess={({ numPages }) => {
+                    onLoadSuccess={async ({ numPages }) => {
                         setNumPages(numPages);
                         setCurrentPage(1);
                         onNumPagesReady?.(numPages);
+
+                        // テキスト抽出
+                        try {
+                            const loadingTask = pdfjs.getDocument(pdfUrl);
+                            const pdf = await loadingTask.promise;
+                            const texts: string[] = [];
+                            for (let i = 1; i <= numPages; i++) {
+                                const page = await pdf.getPage(i);
+                                const content = await page.getTextContent();
+                                const strings = content.items.map((item: any) => item.str);
+                                texts.push(strings.join(" "));
+                            }
+                            onTextReady?.(texts);
+                        } catch (err) {
+                            console.error("PDF text extraction failed:", err);
+                        }
                     }}
                     loading={
                         <div className="flex flex-col items-center gap-2 text-gray-300">

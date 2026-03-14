@@ -121,7 +121,7 @@ async function buildLogicalHistoryForSession(sessionId: string) {
 
 export async function POST(req: Request) {
     try {
-        const { sessionId, message, persona, slideUrl, personaData, apiKey, modelProvider = 'gemini' } =
+        const { sessionId, message, persona, slideUrl, slideText, personaData, apiKey, modelProvider = 'gemini' } =
             await req.json();
 
         if (!apiKey) {
@@ -164,8 +164,14 @@ export async function POST(req: Request) {
                 await saveMessage(sessionId, 'user', message);
             }
 
+            const slideInstruction = slideText && slideText.length > 0
+                ? `ユーザーが添付したスライドの内容を踏まえて反論・コメントしてください。\n【スライドの内容】\n${slideText.map((t: string, i: number) => `[スライド${i + 1}] ${t}`).join('\n')}`
+                : slideUrl
+                    ? 'ユーザーが添付したスライドの内容を踏まえて反論・コメントしてください。'
+                    : '';
+
             const qwenMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-                { role: 'system', content: systemInstruction },
+                { role: 'system', content: systemInstruction + (slideInstruction ? `\n\n${slideInstruction}` : '') },
                 ...history,
                 { role: 'user', content: message },
             ];
@@ -249,6 +255,10 @@ export async function POST(req: Request) {
         // 今回のメッセージ
         let currentMessageContent: Content;
         if (slideUrl) {
+            const extraText = slideText && slideText.length > 0
+                ? `\n【スライドのテキスト内容】\n${slideText.map((t: string, i: number) => `[スライド${i + 1}] ${t}`).join('\n')}`
+                : '';
+
             const pdfRes = await fetch(slideUrl);
             if (!pdfRes.ok) throw new Error(`PDF fetch failed: ${pdfRes.status}`);
             const pdfBuffer = await pdfRes.arrayBuffer();
@@ -257,7 +267,7 @@ export async function POST(req: Request) {
                 role: 'user',
                 parts: [
                     { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
-                    { text: slideInstruction + '\n' + message },
+                    { text: slideInstruction + extraText + '\n' + message },
                 ],
             };
         } else {

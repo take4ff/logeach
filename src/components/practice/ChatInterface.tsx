@@ -13,6 +13,7 @@ interface ChatInterfaceProps {
     sessionId: string;
     persona?: string;
     slideUrl?: string;
+    slideText?: string[];
     personaData?: PersonaData;
     onUserMessage?: (text: string) => void;
     onAssistantChunk?: (chunk: string) => void;
@@ -24,6 +25,7 @@ export default function ChatInterface({
     personaData,
     persona,
     slideUrl,
+    slideText,
     onUserMessage,
     onAssistantChunk,
     onAssistantDone,
@@ -62,7 +64,7 @@ export default function ChatInterface({
                 const res = await fetch("/api/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ sessionId, message: trimmed, persona, slideUrl, personaData, apiKey: userApiKey, modelProvider }),
+                    body: JSON.stringify({ sessionId, message: trimmed, persona, slideUrl, slideText, personaData, apiKey: userApiKey, modelProvider }),
                     signal: controller.signal,
                 });
 
@@ -110,7 +112,7 @@ export default function ChatInterface({
                 setIsLoading(false);
             }
         },
-        [input, isLoading, sessionId, persona, slideUrl, personaData, userApiKey, modelProvider, onUserMessage, onAssistantChunk, onAssistantDone]
+        [input, isLoading, sessionId, persona, slideUrl, slideText, personaData, userApiKey, modelProvider, onUserMessage, onAssistantChunk, onAssistantDone]
     );
 
     // APIキーが設定されていない場合のエラー表示

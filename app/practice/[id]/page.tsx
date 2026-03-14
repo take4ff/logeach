@@ -44,6 +44,7 @@ export default function PracticePage({
 
     // localStorage からスライドURLを読み取る（SlideViewer の onPdfUrlReady で更新）
     const [slideUrl, setSlideUrl] = useState<string | null>(null);
+    const [slideText, setSlideText] = useState<string[]>([]);
 
     const handleFeedbackReady = useCallback(
         async (slideAudios: { page: number; blob: Blob; imageBase64?: string }[]) => {
@@ -70,6 +71,9 @@ export default function PracticePage({
                 formData.append('modelProvider', preferredModel);
                 formData.append('geminiApiKey', geminiApiKey);
                 formData.append('qwenApiKey', qwenApiKey);
+                if (slideText.length > 0) {
+                    formData.append('slideText', JSON.stringify(slideText));
+                }
 
                 const res = await fetch('/api/analyze-presentation', {
                     method: 'POST',
@@ -95,8 +99,13 @@ export default function PracticePage({
                 setIsFeedbackLoading(false);
             }
         },
-        [id, slideUrl]
+        [id, slideUrl, slideText]
     );
+
+    const handleMaterialsOnlyFeedback = useCallback(async () => {
+        if (!slideUrl) return;
+        await handleFeedbackReady([]);
+    }, [handleFeedbackReady, slideUrl]);
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [streamingText, setStreamingText] = useState<string | null>(null);
@@ -244,6 +253,7 @@ export default function PracticePage({
                             onPageChange={setCurrentPage}
                             onNumPagesReady={setTotalPages}
                             onPdfUrlReady={setSlideUrl}
+                            onTextReady={setSlideText}
                         />
                     </div>
                     {/* 左中: 録音コントローラー */}
@@ -254,6 +264,16 @@ export default function PracticePage({
                             sessionId={id}
                             onFeedbackReady={handleFeedbackReady}
                         />
+                        {messages.length === 0 && !isFeedbackLoading && slideUrl && (
+                            <div className="mt-2 flex justify-center">
+                                <button
+                                    onClick={handleMaterialsOnlyFeedback}
+                                    className="text-xs text-primary-light hover:text-white underline underline-offset-4 transition-colors"
+                                >
+                                    資料のみでAIにフィードバックを貰う
+                                </button>
+                            </div>
+                        )}
                     </div>
                     {/* 左下: AIに反論 */}
                     <div className="p-3 sm:p-4 bg-surface border-t border-border">
@@ -262,6 +282,7 @@ export default function PracticePage({
                             sessionId={id}
                             personaData={currentPersona ?? undefined}
                             slideUrl={slideUrl ?? undefined}
+                            slideText={slideText}
                             onUserMessage={handleUserMessage}
                             onAssistantChunk={handleAssistantChunk}
                             onAssistantDone={handleAssistantDone}
