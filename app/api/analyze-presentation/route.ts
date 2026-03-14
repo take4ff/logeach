@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { saveMessage } from '@/src/lib/messages';
 
 // App Router のルートセグメント設定: 大きな音声ファイルのアップロードに対応
+export const runtime = 'edge';
 export const maxDuration = 60; // タイムアウトを 60 秒に延長
 
 export async function POST(req: Request) {

@@ -2,6 +2,8 @@ import { GoogleGenAI, type ContentListUnion, type Content } from '@google/genai'
 import OpenAI from 'openai';
 import { saveMessage, fetchMessages } from '@/src/lib/messages';
 
+export const runtime = 'edge';
+
 export interface PersonaData {
     name: string;
     personality: string;
