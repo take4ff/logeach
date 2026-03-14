@@ -1,9 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+// ビルドエラー防止のため、環境変数がない場合はダミーの文字列を使用する
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
 
 /** ブラウザ用 Supabase クライアント（シングルトン） */
-export const supabase = (supabaseUrl && supabaseAnonKey) 
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : (null as any);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
