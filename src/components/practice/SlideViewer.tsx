@@ -5,7 +5,8 @@ import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { ChevronLeft, ChevronRight, Upload, FileText, Loader2 } from "lucide-react";
-import { uploadSlidePdf } from "@/src/lib/storage";
+import { uploadSlidePdf, resolveSlideUrl } from "@/src/lib/storage";
+import { supabase } from "@/src/lib/supabase";
 
 // react-pdf のワーカーを CDN から読み込む
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -40,19 +41,53 @@ export default function SlideViewer({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const pdfViewportRef = useRef<HTMLDivElement>(null);
 
-    // マウント時に localStorage から復元
+    // マウント時に DB(session.slide_url) 優先で復元。無ければ localStorage を利用
     useEffect(() => {
-        const stored = localStorage.getItem(storageKey(sessionId));
-        if (stored) {
+        let mounted = true;
+
+        const restorePdf = async () => {
+            if (sessionId && sessionId !== "default") {
+                const { data, error } = await supabase
+                    .from("sessions")
+                    .select("slide_url")
+                    .eq("id", sessionId)
+                    .single();
+
+                if (!error && data?.slide_url) {
+                    const resolvedUrl = await resolveSlideUrl(data.slide_url);
+                    if (!mounted) return;
+                    setPdfUrl(resolvedUrl);
+                    setPdfFileName("アップロード済みスライド");
+                    onPdfUrlReady?.(resolvedUrl);
+                    localStorage.setItem(
+                        storageKey(sessionId),
+                        JSON.stringify({ ref: data.slide_url, name: "アップロード済みスライド" })
+                    );
+                    return;
+                }
+            }
+
+            const stored = localStorage.getItem(storageKey(sessionId));
+            if (!stored) return;
+
             try {
-                const { url, name } = JSON.parse(stored);
-                setPdfUrl(url);
+                const { ref, url, name } = JSON.parse(stored);
+                const restoredRef = ref ?? url;
+                const resolvedUrl = await resolveSlideUrl(restoredRef);
+                if (!mounted) return;
+                setPdfUrl(resolvedUrl);
                 setPdfFileName(name);
-                onPdfUrlReady?.(url);
+                onPdfUrlReady?.(resolvedUrl);
             } catch {
                 localStorage.removeItem(storageKey(sessionId));
             }
-        }
+        };
+
+        restorePdf();
+
+        return () => {
+            mounted = false;
+        };
     }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ファイルを選択・ドロップしたときの共通処理
@@ -73,13 +108,30 @@ export default function SlideViewer({
             // Supabase Storage へアップロードし、公開URLをlocalStorageに保存
             setIsUploading(true);
             try {
-                const publicUrl = await uploadSlidePdf(file, sessionId);
+                const { path, publicUrl } = await uploadSlidePdf(file, sessionId);
                 setPdfUrl(publicUrl);
                 localStorage.setItem(
                     storageKey(sessionId),
-                    JSON.stringify({ url: publicUrl, name: file.name })
+                    JSON.stringify({ ref: path, name: file.name })
                 );
                 onPdfUrlReady?.(publicUrl);
+
+                // 体感速度改善: アップロード完了時点で保存中表示を終了
+                setIsUploading(false);
+
+                if (sessionId && sessionId !== "default") {
+                    void (async () => {
+                        const { error: sessionUpdateError } = await supabase
+                            .from("sessions")
+                            .update({ slide_url: path })
+                            .eq("id", sessionId);
+
+                        if (sessionUpdateError) {
+                            console.warn("session.slide_url 保存失敗:", sessionUpdateError.message);
+                            setUploadError("セッションへの保存に失敗しました（このブラウザでは表示できます）。");
+                        }
+                    })();
+                }
             } catch (err) {
                 console.warn("Supabase upload failed:", err);
                 // アップロード失敗はプレビュー表示には影響させない

@@ -12,7 +12,7 @@ import { supabase } from "./supabase";
 export async function uploadSlidePdf(
     file: File,
     sessionId: string
-): Promise<string> {
+): Promise<{ path: string; publicUrl: string }> {
     const ext = file.name.split(".").pop() ?? "pdf";
     const path = `${sessionId}/${Date.now()}.${ext}`;
 
@@ -21,6 +21,52 @@ export async function uploadSlidePdf(
         .upload(path, file, { upsert: true });
 
     if (error) throw new Error(error.message);
+
+    const { data } = supabase.storage.from("slides").getPublicUrl(path);
+    return { path, publicUrl: data.publicUrl };
+}
+
+/**
+ * slide_url（パス or URL）から Storage のパスを抽出する
+ */
+export function extractSlidePath(slideRef: string): string | null {
+    if (!slideRef) return null;
+
+    if (!slideRef.startsWith("http")) {
+        return slideRef;
+    }
+
+    const publicMarker = "/storage/v1/object/public/slides/";
+    const signedMarker = "/storage/v1/object/sign/slides/";
+
+    const publicIdx = slideRef.indexOf(publicMarker);
+    if (publicIdx >= 0) {
+        return decodeURIComponent(slideRef.slice(publicIdx + publicMarker.length).split("?")[0]);
+    }
+
+    const signedIdx = slideRef.indexOf(signedMarker);
+    if (signedIdx >= 0) {
+        return decodeURIComponent(slideRef.slice(signedIdx + signedMarker.length).split("?")[0]);
+    }
+
+    return null;
+}
+
+/**
+ * slide_url（パス or URL）から表示用URLを解決する。
+ * private バケットなら signed URL、public バケットなら public URL を返す。
+ */
+export async function resolveSlideUrl(slideRef: string): Promise<string> {
+    const path = extractSlidePath(slideRef);
+    if (!path) return slideRef;
+
+    const { data: signedData, error: signedError } = await supabase.storage
+        .from("slides")
+        .createSignedUrl(path, 60 * 60);
+
+    if (!signedError && signedData?.signedUrl) {
+        return signedData.signedUrl;
+    }
 
     const { data } = supabase.storage.from("slides").getPublicUrl(path);
     return data.publicUrl;
